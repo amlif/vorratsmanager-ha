@@ -1,0 +1,3154 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="VorratsManager">
+  <meta name="theme-color" content="#3B82F6">
+  <title>🏺 VorratsManager</title>
+  <style>
+    :root {
+      --primary: #3B82F6;
+      --primary-dark: #2563EB;
+      --freezer: #0EA5E9;
+      --freezer-bg: #F0F9FF;
+      --fridge: #10B981;
+      --fridge-bg: #F0FDF4;
+      --pantry: #F59E0B;
+      --pantry-bg: #FFFBEB;
+      --recipe: #8B5CF6;
+      --recipe-bg: #F5F3FF;
+      --safe: #22C55E;
+      --soon: #F59E0B;
+      --critical: #EF4444;
+      --text: #1E293B;
+      --text-muted: #64748B;
+      --text-light: #94A3B8;
+      --bg: #F1F5F9;
+      --card: #FFFFFF;
+      --border: #E2E8F0;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-lg: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.05);
+      --radius: 14px;
+      --radius-sm: 8px;
+      --nav-height: 64px;
+      --header-height: 56px;
+    }
+
+    html { height: 100%; }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100%;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+      transition: background 0.2s, color 0.2s;
+    }
+
+    /* Kleine Smartphones (< 380px) */
+    @media (max-width: 380px) {
+      :root {
+        --nav-height: 56px;
+        --header-height: 48px;
+        --radius: 12px;
+      }
+      .tab-btn { font-size: 9px; }
+      .tab-btn .tab-icon { font-size: 20px; }
+      .header-title { font-size: 17px; }
+      .item-name { font-size: 14px; }
+      .item-card { padding: 10px 12px; }
+    }
+
+    /* Mittlere Smartphones (381px–480px) */
+    @media (max-width: 480px) {
+      .modal { border-radius: var(--radius) var(--radius) 0 0; max-height: 92dvh; }
+      .settings-row { flex-direction: column; }
+      .form-row { flex-direction: column; }
+      .ai-recipe-badges { gap: 4px; }
+      .ai-badge { font-size: 10px; padding: 2px 6px; }
+      .quick-btns { gap: 6px; }
+      .action-btn { font-size: 12px; padding: 6px 8px; }
+    }
+
+    /* ===== HEADER ===== */
+    .header {
+      height: var(--header-height);
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+    .header-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .header-actions {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .lang-toggle {
+      display: flex;
+      background: var(--bg);
+      border-radius: 20px;
+      padding: 2px;
+      gap: 2px;
+    }
+    .lang-btn {
+      padding: 4px 10px;
+      border: none;
+      border-radius: 18px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text-muted);
+      transition: all 0.2s;
+    }
+    .lang-btn.active {
+      background: var(--card);
+      color: var(--text);
+      box-shadow: var(--shadow);
+    }
+    .icon-btn {
+      width: 36px; height: 36px;
+      border: none;
+      border-radius: 50%;
+      background: transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: var(--text-muted);
+      transition: background 0.15s;
+    }
+    .icon-btn:hover { background: var(--bg); }
+
+    /* ===== MAIN ===== */
+    .main {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ===== TABS ===== */
+    .tab-bar {
+      display: flex;
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      height: var(--nav-height);
+      flex-shrink: 0;
+    }
+    .tab-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      padding: 6px 2px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-light);
+      transition: color 0.2s;
+      position: relative;
+      min-width: 0;
+      /* Mindest-Touch-Target 44px */
+      min-height: 44px;
+    }
+    .tab-btn .tab-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+      display: block;
+    }
+    .tab-btn .tab-icon { font-size: 22px; transition: transform 0.2s; }
+    .tab-btn.active { color: var(--primary); }
+    .tab-btn.active[data-tab="freezer"] { color: var(--freezer); }
+    .tab-btn.active[data-tab="fridge"] { color: var(--fridge); }
+    .tab-btn.active[data-tab="pantry"] { color: var(--pantry); }
+    .tab-btn.active[data-tab="recipes"] { color: var(--recipe); }
+    .tab-btn.active .tab-icon { transform: scale(1.1); }
+    .tab-btn::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 20%; right: 20%;
+      height: 2px;
+      border-radius: 0 0 2px 2px;
+      background: transparent;
+      transition: background 0.2s;
+    }
+    .tab-btn.active[data-tab="freezer"]::before { background: var(--freezer); }
+    .tab-btn.active[data-tab="fridge"]::before { background: var(--fridge); }
+    .tab-btn.active[data-tab="pantry"]::before { background: var(--pantry); }
+    .tab-btn.active[data-tab="recipes"]::before { background: var(--recipe); }
+    .tab-badge {
+      position: absolute;
+      top: 8px;
+      right: calc(50% - 18px);
+      min-width: 18px;
+      height: 18px;
+      background: var(--critical);
+      color: white;
+      border-radius: 9px;
+      font-size: 10px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+    }
+
+    /* ===== CONTENT ===== */
+    .tab-content { display: none; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+    .tab-content.active { display: flex; }
+
+    /* ===== FILTER PILLS ===== */
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      padding: 12px 16px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      flex-shrink: 0;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+    }
+    .filter-bar::-webkit-scrollbar { display: none; }
+    .pill {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      background: var(--card);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .pill.active {
+      border-color: var(--freezer);
+      background: var(--freezer-bg);
+      color: var(--freezer);
+    }
+    .tab-content[data-tab="fridge"] .pill.active {
+      border-color: var(--fridge);
+      background: var(--fridge-bg);
+      color: var(--fridge);
+    }
+    .tab-content[data-tab="pantry"] .pill.active {
+      border-color: var(--pantry);
+      background: var(--pantry-bg);
+      color: var(--pantry);
+    }
+
+    /* ===== SEARCH ===== */
+    .search-bar {
+      padding: 10px 16px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .search-input {
+      width: 100%;
+      padding: 10px 14px 10px 38px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 14px;
+      background: var(--bg);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s;
+      position: relative;
+    }
+    .search-input:focus { border-color: var(--primary); }
+    .search-wrap { position: relative; }
+    .search-icon {
+      position: absolute;
+      left: 12px; top: 50%;
+      transform: translateY(-50%);
+      font-size: 16px;
+      pointer-events: none;
+    }
+
+    /* ===== ITEM LIST ===== */
+    .item-list > * { flex-shrink: 0; }
+    .item-list {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 12px 16px 80px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .item-list::-webkit-scrollbar { width: 4px; }
+    .item-list::-webkit-scrollbar-track { background: transparent; }
+    .item-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    /* ===== ITEM CARD ===== */
+    .item-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 0;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.1s, box-shadow 0.1s;
+      position: relative;
+      border: 1.5px solid transparent;
+      overflow: hidden;
+    }
+    .item-card-main {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      cursor: pointer;
+      min-height: 64px; /* Gutes Touch-Target */
+    }
+    .item-card-main:active { background: var(--bg); }
+    .item-card.expiry-critical { border-color: #FEE2E2; background: #FFFAFA; }
+    .item-card.expiry-soon { border-color: #FEF3C7; background: #FFFDF5; }
+
+    .item-emoji {
+      width: 48px; height: 48px;
+      background: var(--bg);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      flex-shrink: 0;
+    }
+    .item-body { flex: 1; min-width: 0; }
+    .item-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .item-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .item-qty { font-weight: 500; color: var(--text); }
+    .item-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+
+    .expiry-badge {
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .badge-safe { background: #DCFCE7; color: #166534; }
+    .badge-soon { background: #FEF3C7; color: #92400E; }
+    .badge-critical { background: #FEE2E2; color: #991B1B; }
+    .badge-none { background: var(--bg); color: var(--text-muted); }
+
+    .added-date { font-size: 11px; color: var(--text-light); }
+
+    /* ===== SECTION HEADER ===== */
+    .section-header {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 4px 0 2px;
+    }
+
+    /* ===== EMPTY STATE ===== */
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 40px 24px;
+      text-align: center;
+    }
+    .empty-icon { font-size: 64px; opacity: 0.4; }
+    .empty-title { font-size: 18px; font-weight: 600; color: var(--text-muted); }
+    .empty-sub { font-size: 14px; color: var(--text-light); }
+
+    /* ===== FAB ===== */
+    .fab {
+      position: fixed;
+      bottom: calc(var(--nav-height) + 16px);
+      right: 20px;
+      width: 56px; height: 56px;
+      border-radius: 16px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-size: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(59,130,246,0.4);
+      transition: transform 0.2s, box-shadow 0.2s;
+      z-index: 20;
+    }
+    .fab:active { transform: scale(0.95); }
+    #tab-freezer:not(.active) ~ .fab,
+    #tab-fridge:not(.active) ~ .fab { display: none; }
+
+    /* ===== RECIPES TAB ===== */
+    .recipe-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .recipe-info-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+    .recipe-info-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .ingredient-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 12px 0;
+    }
+    .ingredient-chip {
+      padding: 6px 12px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      background: var(--card);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .ingredient-chip.selected {
+      background: var(--recipe-bg);
+      border-color: var(--recipe);
+      color: var(--recipe);
+    }
+    .recipe-search-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+    }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-cookidoo-de { background: #E8501A; color: white; }
+    .btn-cookidoo-ru { background: #CC0000; color: white; }
+    .btn-outline {
+      background: transparent;
+      border: 1.5px solid var(--border);
+      color: var(--text);
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-sm { padding: 8px 14px; font-size: 13px; }
+
+    .recipe-tip {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* ===== MODAL ===== */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 100;
+      display: none;
+      align-items: flex-end;
+      backdrop-filter: blur(2px);
+    }
+    .overlay.open { display: flex; }
+
+    .modal {
+      background: var(--card);
+      border-radius: 20px 20px 0 0;
+      width: 100%;
+      max-height: 92dvh;
+      display: flex;
+      flex-direction: column;
+      animation: slideUp 0.25s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    .modal-handle {
+      width: 36px; height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin: 12px auto 0;
+      flex-shrink: 0;
+    }
+    .modal-header {
+      padding: 16px 20px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .modal-title { font-size: 18px; font-weight: 700; }
+    .modal-body { padding: 0 20px 20px; overflow-y: auto; flex: 1; }
+    .modal-footer {
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .modal-footer .btn { flex: 1; justify-content: center; }
+
+    /* ===== FORM ===== */
+    .form-group { margin-bottom: 16px; }
+    .form-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      display: block;
+    }
+    .form-input, .form-select, .form-textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 15px;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--card);
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      border-color: var(--primary);
+    }
+    .form-textarea { resize: none; height: 72px; }
+    .form-row { display: flex; gap: 10px; }
+    .form-row .form-group { flex: 1; }
+
+    .location-toggle {
+      display: flex;
+      background: var(--bg);
+      border-radius: 12px;
+      padding: 3px;
+      gap: 2px;
+      margin-bottom: 16px;
+    }
+    .loc-btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text-muted);
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .loc-btn.active {
+      background: var(--card);
+      box-shadow: var(--shadow);
+    }
+    .loc-btn[data-loc="freezer"].active { color: var(--freezer); }
+    .loc-btn[data-loc="fridge"].active { color: var(--fridge); }
+    .loc-btn[data-loc="pantry"].active { color: var(--pantry); }
+
+    /* ===== SETTINGS ===== */
+    .settings-section { margin-bottom: 20px; }
+    .settings-section-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .settings-row {
+      background: var(--card);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    .settings-item {
+      display: flex;
+      align-items: center;
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+    }
+    .settings-item:last-child { border-bottom: none; }
+    .settings-item-icon { font-size: 20px; }
+    .settings-item-body { flex: 1; }
+    .settings-item-label { font-size: 14px; font-weight: 500; }
+    .settings-item-value { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+
+    /* ===== STATS ===== */
+    .stats-row {
+      display: flex;
+      gap: 10px;
+      padding: 0 16px 12px;
+      flex-shrink: 0;
+    }
+    .stat-card {
+      flex: 1;
+      background: var(--card);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    .stat-value { font-size: 22px; font-weight: 700; }
+    .stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .stat-critical .stat-value { color: var(--critical); }
+    .stat-soon .stat-value { color: var(--soon); }
+
+    /* ===== TOAST ===== */
+    .toast {
+      position: fixed;
+      bottom: calc(var(--nav-height) + 12px);
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #1E293B;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+      z-index: 200;
+      opacity: 0;
+      transition: all 0.3s;
+      white-space: nowrap;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ===== DELETE CONFIRM ===== */
+    .delete-btn {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      border: none;
+      background: #FEE2E2;
+      color: var(--critical);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    /* ===== EXPIRY LIST (modal) ===== */
+    .expiry-section { margin-bottom: 8px; }
+    .expiry-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .no-items-filter {
+      text-align: center;
+      padding: 24px;
+      color: var(--text-light);
+      font-size: 14px;
+    }
+
+    /* ===== QUICK ACTIONS ===== */
+    .item-actions {
+      display: flex;
+      border-top: 1px solid var(--border);
+    }
+    .action-btn {
+      flex: 1;
+      padding: 9px 4px;
+      border: none;
+      border-right: 1px solid var(--border);
+      background: var(--card);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      color: var(--text-muted);
+      transition: background 0.12s;
+      min-height: 40px; /* Touch-Target */
+    }
+    .action-btn:last-child { border-right: none; }
+    .action-btn:active { opacity: 0.7; }
+    .action-btn.action-taken  { color: #92400E; background: #FFFBEB; }
+    .action-btn.action-bring  { color: #065F46; background: #F0FDF4; }
+    .action-btn.action-delete { color: #991B1B; background: #FFF5F5; }
+
+    /* ===== ENTNOMMEN MODAL ===== */
+    .qty-selector {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin: 16px 0;
+    }
+    .qty-btn {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      border: 1.5px solid var(--border);
+      background: var(--bg);
+      font-size: 22px;
+      font-weight: 300;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text);
+      transition: all 0.15s;
+    }
+    .qty-btn:active { background: var(--border); }
+    .qty-display {
+      font-size: 28px;
+      font-weight: 700;
+      min-width: 80px;
+      text-align: center;
+      color: var(--text);
+    }
+    .qty-unit { font-size: 14px; color: var(--text-muted); font-weight: 500; }
+    .quick-btns {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .quick-btn {
+      flex: 1;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1.5px solid var(--border);
+      background: var(--bg);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      color: var(--text-muted);
+      transition: all 0.15s;
+      min-width: 60px;
+    }
+    .quick-btn:active { background: var(--border); }
+    .bring-toggle {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: #F0FDF4;
+      border: 1.5px solid #6EE7B7;
+      border-radius: 10px;
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+    .bring-toggle input[type=checkbox] {
+      width: 20px; height: 20px;
+      accent-color: #10B981;
+      cursor: pointer;
+    }
+    .bring-toggle-label { font-size: 14px; font-weight: 500; color: #065F46; }
+
+    /* ===== AI RECIPES ===== */
+    .ai-generate-btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(135deg, #6366F1, #8B5CF6);
+      color: white;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: opacity 0.2s, transform 0.15s;
+      box-shadow: 0 4px 12px rgba(99,102,241,0.35);
+    }
+    .ai-generate-btn.compact {
+      width: auto;
+      padding: 9px 20px;
+      font-size: 14px;
+      box-shadow: 0 2px 8px rgba(99,102,241,0.3);
+    }
+    .ai-generate-btn:active { transform: scale(0.98); }
+    .ai-generate-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    @media (min-width: 768px) {
+      .ai-generate-btn { width: auto; padding: 10px 24px; font-size: 14px; }
+      .ai-generate-btn.compact { padding: 8px 18px; font-size: 13px; }
+    }
+
+    .ai-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding: 24px;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: #8B5CF6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .ai-recipe-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      border-left: 4px solid #8B5CF6;
+    }
+    .ai-recipe-header {
+      padding: 14px 16px 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .ai-recipe-title-block { flex: 1; }
+    .ai-recipe-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.3;
+    }
+    .ai-recipe-name-ru {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .ai-recipe-badges {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .ai-badge {
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--bg);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .ai-badge-purple { background: #EDE9FE; color: #6D28D9; }
+    .ai-badge-green  { background: #DCFCE7; color: #166534; }
+    .ai-badge-blue   { background: #DBEAFE; color: #1D4ED8; }
+    .ai-badge-cyan   { background: #E0F2FE; color: #0369A1; }
+    .ai-badge-amber  { background: #FEF3C7; color: #B45309; }
+
+    .ai-recipe-expand { font-size: 18px; color: var(--text-muted); flex-shrink: 0; transition: transform 0.2s; }
+    .ai-recipe-card.expanded .ai-recipe-expand { transform: rotate(180deg); }
+
+    .ai-recipe-body {
+      display: none;
+      padding: 0 16px 16px;
+      border-top: 1px solid var(--border);
+    }
+    .ai-recipe-card.expanded .ai-recipe-body { display: block; }
+    .ai-recipe-desc {
+      font-size: 16px;
+      line-height: 1.7;
+      color: var(--text);
+      margin: 12px 0 4px;
+    }
+    .ai-steps-title {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin: 16px 0 10px;
+    }
+    .ai-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .ai-step {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      font-size: 16px;
+      color: var(--text);
+      line-height: 1.7;
+    }
+    .ai-step-num {
+      min-width: 28px; height: 28px;
+      background: #EDE9FE;
+      color: #6D28D9;
+      border-radius: 50%;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .ai-ingredients-used {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin: 8px 0;
+    }
+    .ai-ing-chip {
+      background: var(--freezer-bg);
+      color: var(--freezer);
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 2px 7px;
+    }
+
+    .ai-recipe-links {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+
+    .ai-error {
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 13px;
+      color: #991B1B;
+      text-align: center;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.04); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    /* ===== DARK MODE ===== */
+    body.dark {
+      --primary: #60A5FA;
+      --primary-dark: #3B82F6;
+      --freezer: #38BDF8;
+      --freezer-bg: #0C2340;
+      --fridge: #34D399;
+      --fridge-bg: #052E1C;
+      --pantry: #FBBF24;
+      --pantry-bg: #2D1B00;
+      --recipe: #A78BFA;
+      --recipe-bg: #1E1040;
+      --safe: #4ADE80;
+      --soon: #FCD34D;
+      --critical: #F87171;
+      --text: #F1F5F9;
+      --text-muted: #94A3B8;
+      --text-light: #64748B;
+      --bg: #0F172A;
+      --card: #1E293B;
+      --border: #334155;
+      --shadow: 0 1px 3px rgba(0,0,0,0.4);
+      --shadow-lg: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    body.dark .item-card.expiry-critical { border-color: #7F1D1D; background: #1C0A0A; }
+    body.dark .item-card.expiry-soon    { border-color: #78350F; background: #1A1000; }
+    body.dark .badge-safe    { background: #052E1C; color: #4ADE80; }
+    body.dark .badge-soon    { background: #451A03; color: #FCD34D; }
+    body.dark .badge-critical{ background: #450A0A; color: #FCA5A5; }
+    body.dark .badge-none    { background: #1E293B; color: var(--text-muted); }
+    body.dark .action-btn.action-taken  { color: #FCD34D; background: #2D1B00; }
+    body.dark .action-btn.action-bring  { color: #4ADE80; background: #052E1C; }
+    body.dark .action-btn.action-delete { color: #FCA5A5; background: #1C0505; }
+    body.dark .form-input,
+    body.dark .form-select,
+    body.dark .form-textarea { background: #0F172A; color: var(--text); border-color: var(--border); }
+    body.dark .lang-btn.active { background: #334155; color: var(--text); }
+    body.dark .loc-btn.active  { background: #334155; }
+    body.dark .bring-toggle    { background: #052E1C; border-color: #065F46; }
+    body.dark .pill            { background: var(--card); }
+    body.dark .quick-btn       { background: #0F172A; color: var(--text-muted); border-color: var(--border); }
+    body.dark .ingredient-chip { background: var(--card); border-color: var(--border); }
+    body.dark .ingredient-chip.selected { background: #1E1040; border-color: #7C3AED; color: #A78BFA; }
+    body.dark .recipe-info-card { background: var(--card); }
+    body.dark .ai-recipe-card  { background: var(--card); }
+    body.dark .ai-recipe-body  { border-top-color: var(--border); }
+    body.dark .modal           { background: var(--card); }
+    body.dark .modal-footer    { border-top-color: var(--border); }
+    body.dark .settings-item   { border-bottom-color: var(--border); }
+    body.dark .location-toggle { background: #0F172A; }
+    body.dark .ai-generate-btn { background: linear-gradient(135deg, #4338CA, #6D28D9); }
+
+    /* ===== DESKTOP LAYOUT (>= 768px) ===== */
+    @media (min-width: 768px) {
+      /* Move tab-bar between header and main */
+      .header   { order: 0; }
+      .tab-bar  { order: 1; border-top: none; border-bottom: 1px solid var(--border); height: auto; padding: 0 20px; }
+      .main     { order: 2; }
+
+      /* Tab buttons horizontal */
+      .tab-btn  { flex-direction: row; height: 46px; font-size: 14px; font-weight: 600; gap: 8px; padding: 8px 18px; max-width: 180px; }
+      .tab-btn .tab-icon { font-size: 18px; }
+      .tab-btn::before { top: auto; bottom: 0; left: 10%; right: 10%; height: 3px; }
+
+      /* Content areas: centred, max-width */
+      .filter-bar  { padding: 10px 28px; }
+      .search-bar  { padding: 10px 28px; }
+      .stats-row   { padding: 12px 28px; }
+      .item-list   { padding: 16px 28px 80px; }
+      .recipe-content { padding: 20px 28px; max-width: 960px; margin: 0 auto; width: 100%; align-self: center; }
+
+      /* Wider item cards */
+      .item-emoji { width: 52px; height: 52px; font-size: 28px; }
+      .item-name  { font-size: 16px; }
+
+      /* Modals: centred overlay, not bottom-sheet */
+      .overlay    { align-items: center; justify-content: center; }
+      .modal      { border-radius: var(--radius); max-width: 560px; width: 100%; max-height: 82vh; animation: fadeIn 0.2s ease; }
+
+      /* FAB: no nav-height offset needed */
+      .fab        { bottom: 28px; right: 28px; }
+
+      /* Two-column recipe cards on wide screens */
+      @media (min-width: 1100px) {
+        #recipe-content > div:last-child { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      }
+    }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-title">
+    <span id="header-icon">❄️</span>
+    <span id="header-title-text">VorratsManager</span>
+  </div>
+  <div class="header-actions">
+    <span id="sync-indicator" title="Sync" style="font-size:12px;cursor:default;opacity:0.7"></span>
+    <button class="icon-btn" onclick="openSettings()" title="Einstellungen">⚙️</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- FREEZER TAB -->
+  <div class="tab-content active" id="tab-freezer" data-tab="freezer">
+    <div class="filter-bar" id="filter-freezer"></div>
+    <div class="search-wrap search-bar">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" type="text" id="search-freezer" placeholder="Suchen…" oninput="renderList('freezer')">
+    </div>
+    <div class="stats-row" id="stats-freezer"></div>
+    <div class="item-list" id="list-freezer"></div>
+  </div>
+
+  <!-- FRIDGE TAB -->
+  <div class="tab-content" id="tab-fridge" data-tab="fridge">
+    <div class="filter-bar" id="filter-fridge"></div>
+    <div class="search-wrap search-bar">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" type="text" id="search-fridge" placeholder="Suchen…" oninput="renderList('fridge')">
+    </div>
+    <div class="stats-row" id="stats-fridge"></div>
+    <div class="item-list" id="list-fridge"></div>
+  </div>
+
+  <!-- RECIPES TAB -->
+  <div class="tab-content" id="tab-pantry" data-tab="pantry">
+    <div class="filter-bar" id="filter-pantry"></div>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 16px 0">
+      <input class="search-input" type="text" id="search-pantry" placeholder="Suchen…" oninput="renderList('pantry')" style="flex:1">
+      <button onclick="syncBring()" style="background:var(--pantry);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">🛒 Bring! Sync</button>
+    </div>
+    <div class="stats-row" id="stats-pantry"></div>
+    <div class="item-list" id="list-pantry"></div>
+  </div>
+
+  <div class="tab-content" id="tab-recipes" data-tab="recipes">
+    <div class="recipe-content" id="recipe-content"></div>
+  </div>
+
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="freezer" onclick="switchTab('freezer')">
+    <span class="tab-icon">🧊</span>
+    <span class="tab-label" data-key="tabFreezer">Gefriertruhe</span>
+  </button>
+  <button class="tab-btn" data-tab="fridge" onclick="switchTab('fridge')">
+    <span class="tab-icon">🥬</span>
+    <span class="tab-label" data-key="tabFridge">Kühlschrank</span>
+  </button>
+  <button class="tab-btn" data-tab="pantry" onclick="switchTab('pantry')">
+    <span class="tab-icon">🏺</span>
+    <span class="tab-label" data-key="tabPantry">Vorratsraum</span>
+  </button>
+  <button class="tab-btn" data-tab="recipes" onclick="switchTab('recipes')">
+    <span class="tab-icon">👨‍🍳</span>
+    <span class="tab-label" data-key="tabRecipes">Rezepte</span>
+  </button>
+</div>
+
+<!-- FAB -->
+<button class="fab" onclick="openAddModal()" id="fab-btn">＋</button>
+
+<!-- ENTNOMMEN MODAL -->
+<div class="overlay" id="taken-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal-taken">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title" id="taken-title">Entnommen</div>
+      <button class="icon-btn" onclick="closeAllModals()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="taken-item-info" style="background:var(--bg);border-radius:10px;padding:12px;margin-bottom:16px;font-size:14px;color:var(--text-muted)"></div>
+
+      <div style="font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:6px" id="taken-label">Wie viel entnommen?</div>
+      <div class="quick-btns" id="taken-quick-btns"></div>
+      <div class="qty-selector">
+        <button class="qty-btn" onclick="adjustTaken(-1)">−</button>
+        <div>
+          <div class="qty-display" id="taken-qty-display">1</div>
+          <div class="qty-unit" id="taken-qty-unit"></div>
+        </div>
+        <button class="qty-btn" onclick="adjustTaken(+1)">+</button>
+      </div>
+
+      <label class="bring-toggle" id="bring-toggle-wrap">
+        <input type="checkbox" id="bring-checkbox" checked>
+        <span class="bring-toggle-label" id="bring-toggle-label">🛒 Zu Bring! hinzufügen</span>
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeAllModals()" id="taken-cancel">Abbrechen</button>
+      <button class="btn btn-primary" onclick="confirmTaken()" id="taken-confirm">Bestätigen</button>
+    </div>
+  </div>
+</div>
+
+<!-- BRING IMPORT MODAL -->
+<div class="overlay" id="bring-import-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal-bring-import">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title">🛒 Bring! Import</div>
+      <button class="icon-btn" onclick="closeAllModals()">✕</button>
+    </div>
+    <div class="modal-body" id="bring-import-body" style="max-height:60vh;overflow-y:auto"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeAllModals()" id="bring-import-cancel">Abbrechen</button>
+      <button class="btn btn-primary" onclick="confirmBringImport()" id="bring-import-confirm">Hinzufügen</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal-item">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Artikel hinzufügen</div>
+      <button class="icon-btn" onclick="closeAllModals()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="location-toggle">
+        <button class="loc-btn active" data-loc="freezer" onclick="setModalLocation('freezer')" id="loc-freezer">
+          🧊 <span data-key="tabFreezer">Gefriertruhe</span>
+        </button>
+        <button class="loc-btn" data-loc="fridge" onclick="setModalLocation('fridge')" id="loc-fridge">
+          🥬 <span data-key="tabFridge">Kühlschrank</span>
+        </button>
+        <button class="loc-btn" data-loc="pantry" onclick="setModalLocation('pantry')" id="loc-pantry">
+          🏺 <span data-key="tabPantry">Vorratsraum</span>
+        </button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" data-key="labelName">Name</label>
+        <input class="form-input" id="item-name" type="text" placeholder="z.B. Hähnchenbrust">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" data-key="labelCategory">Kategorie</label>
+        <select class="form-select" id="item-category"></select>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" data-key="labelQty">Menge</label>
+          <input class="form-input" id="item-qty" type="number" min="0.1" step="0.1" value="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label" data-key="labelUnit">Einheit</label>
+          <select class="form-select" id="item-unit"></select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" data-key="labelAdded">Eingelagert am</label>
+          <input class="form-input" id="item-added" type="date">
+        </div>
+        <div class="form-group">
+          <label class="form-label" data-key="labelExpiry">MHD (optional)</label>
+          <input class="form-input" id="item-expiry" type="date">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" data-key="labelNotes">Notizen</label>
+        <textarea class="form-textarea" id="item-notes" placeholder="z.B. selbst eingefroren, mariniert…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeAllModals()" data-key="btnCancel">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveItem()" data-key="btnSave">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="overlay" id="settings-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal-settings">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title" data-key="settingsTitle">Einstellungen</div>
+      <button class="icon-btn" onclick="closeAllModals()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="settings-section">
+        <div class="settings-section-title" data-key="settingsHa">Home Assistant</div>
+        <div class="settings-row">
+          <div class="settings-item">
+            <span class="settings-item-icon">🌐</span>
+            <div class="settings-item-body">
+              <div class="settings-item-label">URL</div>
+              <input class="form-input" id="ha-url" type="text" placeholder="http://192.168.1.11:8123" style="margin-top:6px">
+            </div>
+          </div>
+          <div class="settings-item">
+            <span class="settings-item-icon">🔑</span>
+            <div class="settings-item-body">
+              <div class="settings-item-label">Long-Lived Token <span style="font-size:11px;color:var(--safe)">(Sync + Bring!)</span></div>
+              <input class="form-input" id="ha-token" type="password" placeholder="eyJ…" style="margin-top:6px">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">🤖 KI-Rezepte</div>
+        <div class="settings-row">
+          <div class="settings-item">
+            <span class="settings-item-icon">🌐</span>
+            <div class="settings-item-body">
+              <div class="settings-item-label">OpenRouter Key <span style="font-size:11px;color:var(--safe)">(kostenlos)</span></div>
+              <div style="font-size:11px;color:var(--text-muted);margin:2px 0 4px">openrouter.ai → kostenlose Modelle</div>
+              <input class="form-input" id="openrouter-key" type="password" placeholder="sk-or-…" style="margin-top:2px">
+            </div>
+          </div>
+          <div class="settings-item">
+            <span class="settings-item-icon">⚡</span>
+            <div class="settings-item-body">
+              <div class="settings-item-label">Groq API Key <span style="font-size:11px;color:var(--safe)">(kostenlos)</span></div>
+              <div style="font-size:11px;color:var(--text-muted);margin:2px 0 4px">console.groq.com</div>
+              <input class="form-input" id="groq-key" type="password" placeholder="gsk_…" style="margin-top:2px">
+            </div>
+          </div>
+          <div class="settings-item">
+            <span class="settings-item-icon">🔮</span>
+            <div class="settings-item-body">
+              <div class="settings-item-label">Gemini (über HA)</div>
+              <div style="font-size:11px;color:var(--text-muted);margin:2px 0">Letzter Fallback. Benötigt google_generative_ai_conversation in HA.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title" data-key="settingsDisplay">Darstellung</div>
+        <div class="settings-row">
+          <div class="settings-item" style="cursor:pointer" onclick="toggleDarkMode()">
+            <span class="settings-item-icon" id="dark-icon">🌙</span>
+            <div class="settings-item-body">
+              <div class="settings-item-label" data-key="settingsDark">Dunkles Design</div>
+              <div class="settings-item-value" id="dark-label">Aus</div>
+            </div>
+            <div id="dark-toggle" style="width:44px;height:24px;border-radius:12px;background:var(--border);position:relative;flex-shrink:0;transition:background 0.2s">
+              <div id="dark-knob" style="width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:left 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.3)"></div>
+            </div>
+          </div>
+          <div class="settings-item">
+            <span class="settings-item-icon">🌐</span>
+            <div class="settings-item-body">
+              <div class="settings-item-label" data-key="settingsLang">Sprache</div>
+              <div class="lang-toggle" style="margin-top:8px">
+                <button class="lang-btn" data-lang="de" onclick="setLang('de')">DE</button>
+                <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+                <button class="lang-btn" data-lang="ru" onclick="setLang('ru')">RU</button>
+                <button class="lang-btn" data-lang="sq" onclick="setLang('sq')">SQ</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title" data-key="settingsNotify">Benachrichtigungen</div>
+        <div class="settings-row">
+          <div class="settings-item">
+            <span class="settings-item-icon">⚠️</span>
+            <div class="settings-item-body">
+              <div class="settings-item-label" data-key="settingsExpiryDays">MHD-Warnung (Tage vorher)</div>
+              <input class="form-input" id="notify-days" type="number" min="1" max="14" value="2" style="margin-top:6px;width:80px">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Daten</div>
+        <div class="settings-row">
+          <div class="settings-item" onclick="exportData()" style="cursor:pointer">
+            <span class="settings-item-icon">📤</span>
+            <div class="settings-item-body">
+              <div class="settings-item-label" data-key="settingsExport">Daten exportieren (JSON)</div>
+            </div>
+          </div>
+          <div class="settings-item" style="cursor:pointer">
+            <span class="settings-item-icon">📥</span>
+            <div class="settings-item-body">
+              <div class="settings-item-label" data-key="settingsImport">Daten importieren</div>
+              <input type="file" id="import-file" accept=".json" onchange="importData(event)" style="display:none">
+              <label for="import-file" style="font-size:12px;color:var(--primary);cursor:pointer;margin-top:2px;display:block" data-key="settingsChooseFile">Datei wählen</label>
+            </div>
+          </div>
+          <div class="settings-item" onclick="if(confirm('Alle Daten löschen?')) { clearAllData(); }" style="cursor:pointer">
+            <span class="settings-item-icon">🗑️</span>
+            <div class="settings-item-body">
+              <div class="settings-item-label" style="color:var(--critical)" data-key="settingsClear">Alle Daten löschen</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="text-align:center;margin-top:8px;font-size:12px;color:var(--text-light)">
+        VorratsManager v1.0 · Home Assistant Erweiterung
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeAllModals()" data-key="btnCancel">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveSettings()" data-key="btnSave">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// I18N
+// ============================================================
+const T = {
+  de: {
+    tabFreezer: 'Gefriertruhe',
+    tabFridge: 'Kühlschrank',
+    tabPantry: 'Vorratsraum',
+    tabRecipes: 'Rezepte',
+    labelName: 'Name',
+    labelCategory: 'Kategorie',
+    labelQty: 'Menge',
+    labelUnit: 'Einheit',
+    labelAdded: 'Eingelagert am',
+    labelExpiry: 'MHD (optional)',
+    labelNotes: 'Notizen',
+    btnSave: 'Speichern',
+    btnCancel: 'Abbrechen',
+    addTitle: 'Artikel hinzufügen',
+    editTitle: 'Artikel bearbeiten',
+    settingsTitle: 'Einstellungen',
+    settingsHa: 'Home Assistant',
+    settingsNotify: 'Benachrichtigungen',
+    settingsExpiryDays: 'MHD-Warnung (Tage vorher)',
+    settingsExport: 'Daten exportieren (JSON)',
+    settingsImport: 'Daten importieren',
+    settingsChooseFile: 'Datei wählen',
+    settingsClear: 'Alle Daten löschen',
+    filterAll: 'Alle',
+    badgeSafe: (d) => `${d}d`,
+    badgeSoon: (d) => `${d}d ⚠️`,
+    badgeCritical: (d) => d <= 0 ? 'Abgelaufen!' : `${d}d ❗`,
+    badgeNone: 'Kein MHD',
+    addedLabel: 'seit',
+    emptyFreezerTitle: 'Gefriertruhe leer',
+    emptyFreezerSub: 'Tippe auf + um etwas einzulagern',
+    emptyFridgeTitle: 'Kühlschrank leer',
+    emptyFridgeSub: 'Tippe auf + um etwas einzulagern',
+    emptyPantryTitle: 'Vorratsraum leer',
+    emptyPantrySub: 'Tippe auf + um etwas einzulagern',
+    emptyFilterSub: 'Keine Artikel in dieser Kategorie',
+    statTotal: 'Artikel',
+    statCritical: 'Abläuft bald',
+    statSoon: 'Diese Woche',
+    recipeTitle: 'Rezeptvorschläge',
+    recipeSubtitle: 'Wähle Zutaten für Cookidoo-Suche:',
+    recipeSelect: 'Artikel auswählen',
+    recipeSearchDe: '🔍 Cookidoo DE',
+    recipeSearchRu: '🔍 Cookidoo RU',
+    recipeSelectAll: 'Alle',
+    recipeClear: 'Keine',
+    recipeTip: 'Cookidoo öffnet sich mit deinen ausgewählten Zutaten als Suchbegriff.',
+    recipeNoItems: 'Noch keine Artikel eingelagert.',
+    aiGenerate: '🤖 KI-Rezepte generieren',
+    aiGenerating: '⏳ KI generiert Rezepte…',
+    aiError: 'Fehler beim Generieren.',
+    aiNoToken: 'Groq API Key (kostenlos) oder HA Token in ⚙️ Einstellungen eintragen.',
+    aiSteps: 'Thermomix-Zubereitung',
+    aiIngredients: 'Verwendete Zutaten',
+    aiDifficulty: { 'Einfach': 'Einfach', 'Mittel': 'Mittel', 'Fortgeschritten': 'Fortgeschritten' },
+    notifyTitle: '⚠️ Kühlschrank & Gefriertruhe',
+    notifyMsg: (items) => `Folgende Artikel laufen bald ab:\n${items.map(i => `• ${i.icon} ${i.name}: ${i.expiry}`).join('\n')}`,
+    toastSaved: 'Gespeichert ✓',
+    toastDeleted: 'Gelöscht',
+    toastSettings: 'Einstellungen gespeichert ✓',
+    toastNotified: 'Benachrichtigung gesendet ✓',
+    confirmDelete: 'Löschen?',
+    headerFreezer: '❄️ VorratsManager',
+    headerFridge: '🥬 VorratsManager',
+    headerPantry: '🏺 VorratsManager',
+    headerRecipes: '👨‍🍳 VorratsManager',
+    bringImportTitle: '🛒 Bring! importieren',
+    bringImportNone: 'Keine erledigten Artikel in Bring! gefunden.',
+    bringImportHint: 'Lagerort auswählen:',
+    bringImportDone: (n) => `${n} Artikel hinzugefügt ✓`,
+    bringImportError: 'Fehler beim Laden. Token prüfen.',
+    settingsDisplay: 'Darstellung',
+    settingsDark: 'Dunkles Design',
+    settingsLang: 'Sprache',
+    toastSync: '🔄 Echtzeit-Sync vom anderen Gerät',
+  },
+  ru: {
+    tabFreezer: 'Морозильник',
+    tabFridge: 'Холодильник',
+    tabPantry: 'Кладовая',
+    tabRecipes: 'Рецепты',
+    labelName: 'Название',
+    labelCategory: 'Категория',
+    labelQty: 'Количество',
+    labelUnit: 'Единица',
+    labelAdded: 'Дата закладки',
+    labelExpiry: 'Срок годн. (необяз.)',
+    labelNotes: 'Заметки',
+    btnSave: 'Сохранить',
+    btnCancel: 'Отмена',
+    addTitle: 'Добавить продукт',
+    editTitle: 'Редактировать',
+    settingsTitle: 'Настройки',
+    settingsHa: 'Home Assistant',
+    settingsNotify: 'Уведомления',
+    settingsExpiryDays: 'Предупреждение (дней до срока)',
+    settingsExport: 'Экспорт данных (JSON)',
+    settingsImport: 'Импорт данных',
+    settingsChooseFile: 'Выбрать файл',
+    settingsClear: 'Удалить все данные',
+    filterAll: 'Все',
+    badgeSafe: (d) => `${d}д`,
+    badgeSoon: (d) => `${d}д ⚠️`,
+    badgeCritical: (d) => d <= 0 ? 'Истёк!' : `${d}д ❗`,
+    badgeNone: 'Без срока',
+    addedLabel: 'с',
+    emptyFreezerTitle: 'Морозильник пуст',
+    emptyFreezerSub: 'Нажмите + чтобы добавить продукт',
+    emptyFridgeTitle: 'Холодильник пуст',
+    emptyFridgeSub: 'Нажмите + чтобы добавить продукт',
+    emptyPantryTitle: 'Кладовая пуста',
+    emptyPantrySub: 'Нажмите + чтобы добавить продукт',
+    emptyFilterSub: 'Нет продуктов в этой категории',
+    statTotal: 'Продуктов',
+    statCritical: 'Истекает скоро',
+    statSoon: 'На этой неделе',
+    recipeTitle: 'Рецепты',
+    recipeSubtitle: 'Выберите ингредиенты для поиска в Cookidoo:',
+    recipeSelect: 'Выбрать продукты',
+    recipeSearchDe: '🔍 Cookidoo DE',
+    recipeSearchRu: '🔍 Cookidoo RU',
+    recipeSelectAll: 'Все',
+    recipeClear: 'Сбросить',
+    recipeTip: 'Cookidoo откроется с выбранными ингредиентами в строке поиска.',
+    recipeNoItems: 'Список продуктов пуст.',
+    aiGenerate: '🤖 Сгенерировать рецепты',
+    aiGenerating: '⏳ ИИ генерирует рецепты…',
+    aiError: 'Ошибка генерации.',
+    aiNoToken: 'Введите Groq API Key (бесплатно) или HA Token в ⚙️ Настройках.',
+    aiSteps: 'Приготовление в Thermomix',
+    aiIngredients: 'Использованные ингредиенты',
+    aiDifficulty: { 'Einfach': 'Простой', 'Mittel': 'Средний', 'Fortgeschritten': 'Сложный' },
+    notifyTitle: '⚠️ Холодильник и морозильник',
+    notifyMsg: (items) => `Следующие продукты скоро истекут:\n${items.map(i => `• ${i.icon} ${i.name}: ${i.expiry}`).join('\n')}`,
+    toastSaved: 'Сохранено ✓',
+    toastDeleted: 'Удалено',
+    toastSettings: 'Настройки сохранены ✓',
+    toastNotified: 'Уведомление отправлено ✓',
+    confirmDelete: 'Удалить?',
+    headerFreezer: '❄️ VorratsManager',
+    headerFridge: '🥬 VorratsManager',
+    headerPantry: '🏺 VorratsManager',
+    headerRecipes: '👨‍🍳 VorratsManager',
+    bringImportTitle: '🛒 Bring! импорт',
+    bringImportNone: 'Нет купленных товаров в Bring!',
+    bringImportHint: 'Выберите место хранения:',
+    bringImportDone: (n) => `${n} товаров добавлено ✓`,
+    bringImportError: 'Ошибка загрузки. Проверьте токен.',
+    settingsDisplay: 'Оформление',
+    settingsDark: 'Тёмная тема',
+    settingsLang: 'Язык',
+    toastSync: '🔄 Синхронизация с другого устройства',
+  },
+  en: {
+    tabFreezer: 'Freezer',
+    tabFridge: 'Fridge',
+    tabPantry: 'Pantry',
+    tabRecipes: 'Recipes',
+    labelName: 'Name',
+    labelCategory: 'Category',
+    labelQty: 'Quantity',
+    labelUnit: 'Unit',
+    labelAdded: 'Stored on',
+    labelExpiry: 'Best before (optional)',
+    labelNotes: 'Notes',
+    btnSave: 'Save',
+    btnCancel: 'Cancel',
+    addTitle: 'Add item',
+    editTitle: 'Edit item',
+    settingsTitle: 'Settings',
+    settingsHa: 'Home Assistant',
+    settingsNotify: 'Notifications',
+    settingsExpiryDays: 'Expiry warning (days before)',
+    settingsExport: 'Export data (JSON)',
+    settingsImport: 'Import data',
+    settingsChooseFile: 'Choose file',
+    settingsClear: 'Delete all data',
+    filterAll: 'All',
+    badgeSafe: (d) => `${d}d`,
+    badgeSoon: (d) => `${d}d ⚠️`,
+    badgeCritical: (d) => d <= 0 ? 'Expired!' : `${d}d ❗`,
+    badgeNone: 'No expiry',
+    addedLabel: 'since',
+    emptyFreezerTitle: 'Freezer is empty',
+    emptyFreezerSub: 'Tap + to add something',
+    emptyFridgeTitle: 'Fridge is empty',
+    emptyFridgeSub: 'Tap + to add something',
+    emptyPantryTitle: 'Pantry is empty',
+    emptyPantrySub: 'Tap + to add something',
+    emptyFilterSub: 'No items in this category',
+    statTotal: 'Items',
+    statCritical: 'Expiring soon',
+    statSoon: 'This week',
+    recipeTitle: 'Recipe suggestions',
+    recipeSubtitle: 'Select ingredients for Cookidoo search:',
+    recipeSelect: 'Select items',
+    recipeSearchDe: '🔍 Cookidoo DE',
+    recipeSearchRu: '🔍 Cookidoo RU',
+    recipeSelectAll: 'All',
+    recipeClear: 'None',
+    recipeTip: 'Cookidoo opens with your selected ingredients as search term.',
+    recipeNoItems: 'No items stored yet.',
+    aiGenerate: '🤖 Generate AI recipes',
+    aiGenerating: '⏳ AI is generating recipes…',
+    aiError: 'Error generating recipes.',
+    aiNoToken: 'Add a Groq API Key (free) or HA Token in ⚙️ Settings.',
+    aiSteps: 'Preparation',
+    aiIngredients: 'Used ingredients',
+    aiDifficulty: { 'Einfach': 'Easy', 'Mittel': 'Medium', 'Fortgeschritten': 'Advanced' },
+    notifyTitle: '⚠️ Fridge & Freezer',
+    notifyMsg: (items) => `The following items expire soon:\n${items.map(i => `• ${i.icon} ${i.name}: ${i.expiry}`).join('\n')}`,
+    toastSaved: 'Saved ✓',
+    toastDeleted: 'Deleted',
+    toastSettings: 'Settings saved ✓',
+    toastNotified: 'Notification sent ✓',
+    confirmDelete: 'Delete?',
+    headerFreezer: '❄️ PantryManager',
+    headerFridge: '🥬 PantryManager',
+    headerPantry: '🏺 PantryManager',
+    headerRecipes: '👨‍🍳 PantryManager',
+    bringImportTitle: '🛒 Import from Bring!',
+    bringImportNone: 'No checked items found in Bring!',
+    bringImportHint: 'Select storage location:',
+    bringImportDone: (n) => `${n} items added ✓`,
+    bringImportError: 'Error loading. Check token.',
+    settingsDisplay: 'Appearance',
+    settingsDark: 'Dark mode',
+    settingsLang: 'Language',
+    toastSync: '🔄 Real-time sync from another device',
+  },
+  sq: {
+    tabFreezer: 'Ngrirësi',
+    tabFridge: 'Frigoriferi',
+    tabPantry: 'Qilari',
+    tabRecipes: 'Receta',
+    labelName: 'Emri',
+    labelCategory: 'Kategoria',
+    labelQty: 'Sasia',
+    labelUnit: 'Njësia',
+    labelAdded: 'Shtuar më',
+    labelExpiry: 'Skadenca (opsionale)',
+    labelNotes: 'Shënime',
+    btnSave: 'Ruaj',
+    btnCancel: 'Anulo',
+    addTitle: 'Shto artikull',
+    editTitle: 'Ndrysho artikullin',
+    settingsTitle: 'Cilësimet',
+    settingsHa: 'Home Assistant',
+    settingsNotify: 'Njoftimet',
+    settingsExpiryDays: 'Paralajmërim skadence (ditë)',
+    settingsExport: 'Eksporto të dhënat (JSON)',
+    settingsImport: 'Importo të dhënat',
+    settingsChooseFile: 'Zgjidh skedarin',
+    settingsClear: 'Fshi të gjitha të dhënat',
+    filterAll: 'Të gjitha',
+    badgeSafe: (d) => `${d}d`,
+    badgeSoon: (d) => `${d}d ⚠️`,
+    badgeCritical: (d) => d <= 0 ? 'Skaduar!' : `${d}d ❗`,
+    badgeNone: 'Pa skadencë',
+    addedLabel: 'nga',
+    emptyFreezerTitle: 'Ngrirësi është bosh',
+    emptyFreezerSub: 'Shtypni + për të shtuar',
+    emptyFridgeTitle: 'Frigoriferi është bosh',
+    emptyFridgeSub: 'Shtypni + për të shtuar',
+    emptyPantryTitle: 'Qilari është bosh',
+    emptyPantrySub: 'Shtypni + për të shtuar',
+    emptyFilterSub: 'Nuk ka artikuj në këtë kategori',
+    statTotal: 'Artikuj',
+    statCritical: 'Skadon shpejt',
+    statSoon: 'Këtë javë',
+    recipeTitle: 'Sugjerime recetash',
+    recipeSubtitle: 'Zgjidhni përbërës për kërkim në Cookidoo:',
+    recipeSelect: 'Zgjidhni produktet',
+    recipeSearchDe: '🔍 Cookidoo DE',
+    recipeSearchRu: '🔍 Cookidoo RU',
+    recipeSelectAll: 'Të gjitha',
+    recipeClear: 'Asnjë',
+    recipeTip: 'Cookidoo hapet me përbërësit e zgjedhur si kërkim.',
+    recipeNoItems: 'Ende nuk keni produkte të shtuar.',
+    aiGenerate: '🤖 Gjenero receta me AI',
+    aiGenerating: '⏳ AI po gjeneron receta…',
+    aiError: 'Gabim gjatë gjenerimit.',
+    aiNoToken: 'Vendosni Groq API Key (falas) ose HA Token në ⚙️ Cilësimet.',
+    aiSteps: 'Mënyra e përgatitjes',
+    aiIngredients: 'Përbërësit e përdorur',
+    aiDifficulty: { 'Einfach': 'E lehtë', 'Mittel': 'Mesme', 'Fortgeschritten': 'E vështirë' },
+    notifyTitle: '⚠️ Frigorifer & Ngrirës',
+    notifyMsg: (items) => `Këta artikuj skadon shpejt:\n${items.map(i => `• ${i.icon} ${i.name}: ${i.expiry}`).join('\n')}`,
+    toastSaved: 'Ruajtur ✓',
+    toastDeleted: 'Fshirë',
+    toastSettings: 'Cilësimet u ruajtën ✓',
+    toastNotified: 'Njoftimi u dërgua ✓',
+    confirmDelete: 'Fshi?',
+    headerFreezer: '❄️ VorratsManager',
+    headerFridge: '🥬 VorratsManager',
+    headerPantry: '🏺 VorratsManager',
+    headerRecipes: '👨‍🍳 VorratsManager',
+    bringImportTitle: '🛒 Importo nga Bring!',
+    bringImportNone: 'Nuk ka artikuj të blerë në Bring!',
+    bringImportHint: 'Zgjidhni vendin e ruajtjes:',
+    bringImportDone: (n) => `${n} artikuj u shtuan ✓`,
+    bringImportError: 'Gabim. Kontrolloni tokenin.',
+    settingsDisplay: 'Pamja',
+    settingsDark: 'Tema e errët',
+    settingsLang: 'Gjuha',
+    toastSync: '🔄 Sinkronizim nga pajisja tjetër',
+  }
+};
+
+function t(key, ...args) {
+  const val = (T[db.settings.lang] || T.de)[key] ?? T.de[key];
+  if (val === undefined) return key;
+  if (typeof val === 'function') return val(...args);
+  return val;
+}
+
+function catLabel(cat) {
+  const lang = db.settings.lang;
+  return cat[lang] || cat.de;
+}
+
+function locLabel(locId) {
+  const lang = db.settings.lang;
+  const loc = LOCATIONS.find(l => l.id === locId);
+  if (!loc) return locId;
+  return loc[lang] || loc.de;
+}
+
+// ============================================================
+// CATEGORIES
+// ============================================================
+const CATEGORIES = {
+  freezer: [
+    { id: 'meat',      emoji: '🥩', de: 'Fleisch',           en: 'Meat',              ru: 'Мясо',           sq: 'Mish' },
+    { id: 'poultry',   emoji: '🍗', de: 'Geflügel',          en: 'Poultry',           ru: 'Птица',          sq: 'Shpezë' },
+    { id: 'fish',      emoji: '🐟', de: 'Fisch & Meeresfrüchte', en: 'Fish & Seafood', ru: 'Рыба и морепродукты', sq: 'Peshk & Fruta deti' },
+    { id: 'vegetables',emoji: '🥦', de: 'Gemüse & Kräuter',  en: 'Vegetables & Herbs',ru: 'Овощи и зелень', sq: 'Perime & Bimë' },
+    { id: 'fruits',    emoji: '🍓', de: 'Obst & Beeren',      en: 'Fruit & Berries',   ru: 'Фрукты и ягоды', sq: 'Fruta & Manaferra' },
+    { id: 'bread',     emoji: '🍞', de: 'Brot & Backwaren',   en: 'Bread & Bakery',    ru: 'Хлеб и выпечка', sq: 'Bukë & Produkte buke' },
+    { id: 'dough',     emoji: '🥐', de: 'Teig & Blätterteig', en: 'Dough & Pastry',    ru: 'Тесто',          sq: 'Brumë' },
+    { id: 'readymade', emoji: '🍲', de: 'Fertiggerichte',     en: 'Ready meals',       ru: 'Готовые блюда',  sq: 'Ushqim i gatshëm' },
+    { id: 'soups',     emoji: '🥣', de: 'Suppen & Saucen',    en: 'Soups & Sauces',    ru: 'Супы и соусы',   sq: 'Supa & Salca' },
+    { id: 'icecream',  emoji: '🍦', de: 'Eis & Desserts',     en: 'Ice cream & Desserts', ru: 'Мороженое и десерты', sq: 'Akullore & Ëmbëlsira' },
+    { id: 'other',     emoji: '🧊', de: 'Sonstiges',          en: 'Other',             ru: 'Прочее',         sq: 'Të tjera' },
+  ],
+  fridge: [
+    { id: 'dairy',      emoji: '🥛', de: 'Milch & Milchprodukte', en: 'Milk & Dairy',      ru: 'Молоко и молочные', sq: 'Qumësht & Bulmetore' },
+    { id: 'cheese',     emoji: '🧀', de: 'Käse',               en: 'Cheese',            ru: 'Сыр',            sq: 'Djathë' },
+    { id: 'butter',     emoji: '🧈', de: 'Butter & Aufschnitt', en: 'Butter & Cold cuts', ru: 'Масло и нарезки', sq: 'Gjalpë & Meze' },
+    { id: 'eggs',       emoji: '🥚', de: 'Eier',               en: 'Eggs',              ru: 'Яйца',           sq: 'Vezë' },
+    { id: 'fresh_meat', emoji: '🥩', de: 'Fleisch & Wurst (frisch)', en: 'Meat & Sausage (fresh)', ru: 'Мясо и колбасы (свежие)', sq: 'Mish & Suxhuk (freskët)' },
+    { id: 'fresh_fish', emoji: '🐟', de: 'Fisch (frisch)',      en: 'Fish (fresh)',      ru: 'Рыба (свежая)',  sq: 'Peshk (freskët)' },
+    { id: 'produce',    emoji: '🥗', de: 'Obst & Gemüse (frisch)', en: 'Fruit & Veg (fresh)', ru: 'Фрукты и овощи (свежие)', sq: 'Fruta & Perime (freskët)' },
+    { id: 'drinks',     emoji: '🥤', de: 'Getränke & Säfte',   en: 'Drinks & Juices',   ru: 'Напитки и соки', sq: 'Pije & Lëngje' },
+    { id: 'sauces',     emoji: '🫙', de: 'Saucen, Dips & Aufstriche', en: 'Sauces & Dips', ru: 'Соусы и дипы', sq: 'Salca & Dips' },
+    { id: 'leftovers',  emoji: '🍽️', de: 'Reste & Vorgekochtes', en: 'Leftovers',       ru: 'Остатки',        sq: 'Mbetje ushqimi' },
+    { id: 'condiments', emoji: '🥫', de: 'Würzmittel & Konserven', en: 'Condiments',    ru: 'Приправы',       sq: 'Erëza & Konserva' },
+    { id: 'other',      emoji: '❄️', de: 'Sonstiges',          en: 'Other',             ru: 'Прочее',         sq: 'Të tjera' },
+  ],
+  pantry: [
+    { id: 'canned',    emoji: '🥫', de: 'Konserven & Dosen',    en: 'Canned goods',      ru: 'Консервы',       sq: 'Konserva' },
+    { id: 'pasta',     emoji: '🍝', de: 'Nudeln, Reis & Getreide', en: 'Pasta, Rice & Grains', ru: 'Макароны, рис и крупы', sq: 'Makarona, Oriz & Drithëra' },
+    { id: 'baking',    emoji: '🌾', de: 'Backen (Mehl, Zucker…)', en: 'Baking (Flour, Sugar…)', ru: 'Выпечка (мука, сахар…)', sq: 'Pjekje (Miell, Sheqer…)' },
+    { id: 'oils',      emoji: '🫙', de: 'Öle, Essig & Saucen',  en: 'Oils, Vinegar & Sauces', ru: 'Масла, уксус и соусы', sq: 'Vaj, Uthull & Salca' },
+    { id: 'spices',    emoji: '🧂', de: 'Gewürze & Kräuter',    en: 'Spices & Herbs',    ru: 'Специи и травы', sq: 'Erëza & Bimë aromatike' },
+    { id: 'snacks',    emoji: '🍪', de: 'Snacks & Süßwaren',    en: 'Snacks & Sweets',   ru: 'Снеки и сладости', sq: 'Snaqe & Ëmbëlsira' },
+    { id: 'drinks',    emoji: '🥤', de: 'Getränke (Haltbar)',   en: 'Long-life drinks',  ru: 'Напитки (долгосрочные)', sq: 'Pije (jetëgjata)' },
+    { id: 'breakfast', emoji: '🥣', de: 'Frühstück & Müsli',   en: 'Breakfast & Cereal', ru: 'Завтрак и мюсли', sq: 'Mëngjes & Drithëra' },
+    { id: 'legumes',   emoji: '🫘', de: 'Hülsenfrüchte',        en: 'Legumes',           ru: 'Бобовые',        sq: 'Bishtajore' },
+    { id: 'other',     emoji: '📦', de: 'Sonstiges',            en: 'Other',             ru: 'Прочее',         sq: 'Të tjera' },
+  ]
+};
+
+const UNITS = {
+  de: ['Stück', 'Portion(en)', 'kg', 'g', 'Liter', 'ml', 'Packung', 'Beutel', 'Dose', 'Glas', 'Bund', 'Scheibe(n)'],
+  en: ['piece(s)', 'portion(s)', 'kg', 'g', 'litre', 'ml', 'pack', 'bag', 'can', 'glass', 'bunch', 'slice(s)'],
+  ru: ['шт', 'порция(й)', 'кг', 'г', 'л', 'мл', 'упаковка', 'пакет', 'банка', 'стакан', 'пучок', 'ломтик(ов)'],
+  sq: ['copë', 'porcione', 'kg', 'g', 'litër', 'ml', 'paketë', 'qese', 'kanaçe', 'gotë', 'tufë', 'fetë'],
+};
+
+const LOCATIONS = [
+  { id: 'freezer', de: 'Gefriertruhe', en: 'Freezer',  ru: 'Морозильник', sq: 'Ngrirësi' },
+  { id: 'fridge',  de: 'Kühlschrank',  en: 'Fridge',   ru: 'Холодильник', sq: 'Frigoriferi' },
+  { id: 'pantry',  de: 'Vorratsraum',  en: 'Pantry',   ru: 'Кладовая',   sq: 'Qilari' },
+];
+
+// ============================================================
+// STATE
+// ============================================================
+let db = {
+  items: [],
+  settings: {
+    lang: 'de',
+    haUrl: (window.location.origin !== 'null' && window.location.origin !== 'file://' ? window.location.origin : 'http://192.168.1.11:8123'),
+    haToken: '',
+    notifyDays: 2,
+    lastNotifyDate: '',
+    filterFreezer: 'all',
+    filterFridge: 'all',
+    filterPantry: 'all',
+    openRouterKey: '',
+    groqApiKey: '',
+    darkMode: false,
+  }
+};
+
+let editingId = null;
+let modalLocation = 'freezer';
+let selectedIngredients = new Set();
+let aiRecipes = [];
+let aiLoading = false;
+let aiError = '';
+let aiPortions = 4;
+
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+function loadDb() {
+  try {
+    const saved = localStorage.getItem('fridgeapp_v1');
+    if (saved) db = JSON.parse(saved);
+  } catch(e) {}
+}
+
+function saveDb() {
+  localStorage.setItem('fridgeapp_v1', JSON.stringify(db));
+  saveToServer(); // Echtzeit-Sync an alle Geräte
+}
+
+// ============================================================
+// SERVER SYNC (HA-Backend, Echtzeit via WebSocket)
+// ============================================================
+let _lastSavedTs = '';
+let _inHaPanel = false; // true wenn in panel.js iframe
+
+// Einstellungen die server-seitig geteilt werden (alle Geräte)
+const SHARED_SETTINGS = ['openRouterKey','groqApiKey','notifyDays','bringToken','bringListUuid','bringListName'];
+
+function getSharedSettings() {
+  const s = {};
+  SHARED_SETTINGS.forEach(k => { if (db.settings[k] !== undefined) s[k] = db.settings[k]; });
+  return s;
+}
+
+function applySharedSettings(shared) {
+  if (!shared) return;
+  // Nur nicht-leere Server-Werte übernehmen – lokale Keys bleiben wenn Server leer ist
+  SHARED_SETTINGS.forEach(k => { if (shared[k]) db.settings[k] = shared[k]; });
+}
+
+async function loadFromServer() {
+  try {
+    const r = await fetch('/local/vorratsmanager/data.json?_=' + Date.now());
+    if (!r.ok) return null;
+    return await r.json();
+  } catch(e) { return null; }
+}
+
+function saveToServer() {
+  const updated = new Date().toISOString();
+  _lastSavedTs = updated;
+  if (_inHaPanel) {
+    // Im HA-Panel: panel.js übernimmt den API-Call (kein Token nötig)
+    window.parent.postMessage({
+      type: 'vorrat-save',
+      items: db.items,
+      settings: getSharedSettings(),
+      updated
+    }, '*');
+  } else if (getToken()) {
+    // Direktzugriff ohne Panel: eigener Token
+    fetch(`${db.settings.haUrl}/api/services/vorratsmanager/vorrat_save`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: db.items, settings: getSharedSettings(), updated })
+    }).catch(() => {});
+  }
+}
+
+function getToken() { return db.settings.haToken; }
+
+function setSyncIndicator(state) {
+  const el = document.getElementById('sync-indicator');
+  if (!el) return;
+  const icons = { connected: '🟢', disconnected: '🔴', synced: '🔄' };
+  el.textContent = icons[state] || '';
+  el.title = state === 'connected' ? 'Echtzeit-Sync aktiv' : state === 'disconnected' ? 'Kein Panel' : 'Synchronisiert';
+}
+
+// Nachrichten von panel.js empfangen
+window.addEventListener('message', async (e) => {
+  if (e.data?.type === 'ha-ready') {
+    _inHaPanel = true;
+    setSyncIndicator('connected');
+  }
+  else if (e.data?.type === 'vorrat-updated') {
+    const serverTs = e.data.updated || '';
+    if (serverTs && serverTs === _lastSavedTs) return; // eigenes Update ignorieren
+    const serverData = await loadFromServer();
+    if (serverData?.items && Array.isArray(serverData.items)) {
+      db.items = serverData.items;
+      applySharedSettings(serverData.settings);
+      _lastSavedTs = serverData.updated || '';
+      localStorage.setItem('fridgeapp_v1', JSON.stringify(db));
+      renderAll();
+      setSyncIndicator('synced');
+      showToast(t('toastSync'));
+      setTimeout(() => setSyncIndicator('connected'), 2000);
+    }
+  }
+});
+
+// ============================================================
+// EXPIRY HELPERS
+// ============================================================
+function daysUntilExpiry(dateStr) {
+  if (!dateStr) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const exp = new Date(dateStr); exp.setHours(0,0,0,0);
+  return Math.floor((exp - today) / 86400000);
+}
+
+function expiryClass(days) {
+  if (days === null) return 'none';
+  if (days <= 0) return 'critical';
+  if (days <= db.settings.notifyDays) return 'critical';
+  if (days <= 7) return 'soon';
+  return 'safe';
+}
+
+function expiryBadge(days, lang) {
+  if (days === null) return { text: t('badgeNone'), cls: 'badge-none' };
+  if (days <= 0) return { text: T[lang].badgeCritical(days), cls: 'badge-critical' };
+  if (days <= db.settings.notifyDays) return { text: T[lang].badgeCritical(days), cls: 'badge-critical' };
+  if (days <= 7) return { text: T[lang].badgeSoon(days), cls: 'badge-soon' };
+  return { text: T[lang].badgeSafe(days), cls: 'badge-safe' };
+}
+
+function getCatInfo(location, catId) {
+  const cats = CATEGORIES[location];
+  return cats.find(c => c.id === catId) || cats[cats.length - 1];
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  const localeMap = { de: 'de-DE', en: 'en-GB', ru: 'ru-RU', sq: 'sq-AL' };
+  const locale = localeMap[db.settings.lang] || 'de-DE';
+  return d.toLocaleDateString(locale, { day:'2-digit', month:'2-digit', year:'2-digit' });
+}
+
+function today() {
+  return new Date().toISOString().slice(0,10);
+}
+
+// ============================================================
+// HA API
+// ============================================================
+async function haCallService(domain, service, data = {}) {
+  if (!db.settings.haUrl || !getToken()) return false;
+  try {
+    const r = await fetch(`${db.settings.haUrl}/api/services/${domain}/${service}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${getToken()}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+    return r.ok;
+  } catch(e) { return false; }
+}
+
+async function checkExpiryAndNotify() {
+  const notifyDays = Number(db.settings.notifyDays) || 2;
+  const todayStr = today();
+  if (db.settings.lastNotifyDate === todayStr) return;
+  if (!getToken()) return;
+
+  const expiring = db.items.filter(item => {
+    const days = daysUntilExpiry(item.expiry);
+    return days !== null && days <= notifyDays;
+  });
+
+  if (expiring.length === 0) return;
+
+  const lang = db.settings.lang;
+  const msg = T[lang].notifyMsg(expiring.map(i => {
+    const cat = getCatInfo(i.location, i.category);
+    return { icon: cat.emoji, name: i.name, expiry: formatDate(i.expiry) };
+  }));
+
+  const ok = await haCallService('telegram_bot', 'send_message', {
+    title: T[lang].notifyTitle,
+    message: msg,
+    disable_notification: false
+  });
+
+  if (ok) {
+    db.settings.lastNotifyDate = todayStr;
+    saveDb();
+    showToast(t('toastNotified'));
+  }
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function renderAll() {
+  renderFilters('freezer');
+  renderFilters('fridge');
+  renderFilters('pantry');
+  renderList('freezer');
+  renderList('fridge');
+  renderList('pantry');
+  renderStats('freezer');
+  renderStats('fridge');
+  renderStats('pantry');
+  renderRecipes();
+  updateTabBadges();
+  updateI18n();
+}
+
+function updateI18n() {
+  const lang = db.settings.lang;
+  document.querySelectorAll('[data-lang]').forEach(el => {
+    el.classList.toggle('active', el.dataset.lang === lang);
+  });
+  document.querySelectorAll('[data-key]').forEach(el => {
+    const key = el.dataset.key;
+    const val = T[lang][key];
+    if (val && typeof val === 'string') el.textContent = val;
+  });
+  document.getElementById('item-unit').innerHTML = '';
+  const units = UNITS[lang] || UNITS['de'];
+  units.forEach(u => {
+    const o = document.createElement('option');
+    o.value = u; o.textContent = u;
+    document.getElementById('item-unit').appendChild(o);
+  });
+}
+
+function filterKey(loc) {
+  return `filter${loc.charAt(0).toUpperCase() + loc.slice(1)}`;
+}
+
+function renderFilters(loc) {
+  const el = document.getElementById(`filter-${loc}`);
+  const cats = CATEGORIES[loc];
+  const currentFilter = db.settings[filterKey(loc)] || 'all';
+  const lang = db.settings.lang;
+
+  let html = `<button class="pill ${currentFilter === 'all' ? 'active' : ''}" onclick="setFilter('${loc}','all')">${T[lang].filterAll}</button>`;
+  cats.forEach(cat => {
+    const count = db.items.filter(i => i.location === loc && i.category === cat.id).length;
+    if (count > 0) {
+      html += `<button class="pill ${currentFilter === cat.id ? 'active' : ''}" onclick="setFilter('${loc}','${cat.id}')">
+        ${cat.emoji} ${catLabel(cat)} <span style="font-size:11px;opacity:0.7">${count}</span>
+      </button>`;
+    }
+  });
+  el.innerHTML = html;
+}
+
+function setFilter(loc, catId) {
+  db.settings[filterKey(loc)] = catId;
+  saveDb();
+  renderFilters(loc);
+  renderList(loc);
+}
+
+function renderStats(loc) {
+  const el = document.getElementById(`stats-${loc}`);
+  const notifyDays = Number(db.settings.notifyDays) || 2;
+  const items = db.items.filter(i => i.location === loc);
+  const critical = items.filter(i => { const d = daysUntilExpiry(i.expiry); return d !== null && d <= notifyDays; });
+  const soon = items.filter(i => { const d = daysUntilExpiry(i.expiry); return d !== null && d > notifyDays && d <= 7; });
+
+  if (items.length === 0) { el.innerHTML = ''; return; }
+
+  el.innerHTML = `
+    <div class="stat-card">
+      <div class="stat-value">${items.length}</div>
+      <div class="stat-label">${t('statTotal')}</div>
+    </div>
+    ${critical.length > 0 ? `<div class="stat-card stat-critical">
+      <div class="stat-value">${critical.length}</div>
+      <div class="stat-label">${t('statCritical')}</div>
+    </div>` : ''}
+    ${soon.length > 0 ? `<div class="stat-card stat-soon">
+      <div class="stat-value">${soon.length}</div>
+      <div class="stat-label">${t('statSoon')}</div>
+    </div>` : ''}
+  `;
+}
+
+function renderList(loc) {
+  const el = document.getElementById(`list-${loc}`);
+  const lang = db.settings.lang;
+  const filter = db.settings[filterKey(loc)] || 'all';
+  const search = document.getElementById(`search-${loc}`)?.value?.toLowerCase() || '';
+
+  let items = db.items.filter(i => i.location === loc);
+  if (filter !== 'all') items = items.filter(i => i.category === filter);
+  if (search) items = items.filter(i => i.name.toLowerCase().includes(search));
+
+  // Sort: critical first, then by expiry (soonest first), then by name
+  items.sort((a, b) => {
+    const da = daysUntilExpiry(a.expiry);
+    const db2 = daysUntilExpiry(b.expiry);
+    if (da === null && db2 === null) return a.name.localeCompare(b.name);
+    if (da === null) return 1;
+    if (db2 === null) return -1;
+    return da - db2;
+  });
+
+  if (items.length === 0) {
+    const noItems = db.items.filter(i => i.location === loc).length === 0;
+    const icons = { freezer: '🧊', fridge: '🥬', pantry: '🏺' };
+    const emptyTitles = { freezer: t('emptyFreezerTitle'), fridge: t('emptyFridgeTitle'), pantry: t('emptyPantryTitle') };
+    const emptySubs = { freezer: t('emptyFreezerSub'), fridge: t('emptyFridgeSub'), pantry: t('emptyPantrySub') };
+    el.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">${icons[loc] || '📦'}</div>
+      <div class="empty-title">${noItems ? (emptyTitles[loc] || '') : t('filterAll')}</div>
+      <div class="empty-sub">${noItems ? (emptySubs[loc] || '') : t('emptyFilterSub')}</div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = items.map(item => {
+    const cat = getCatInfo(loc, item.category);
+    const days = daysUntilExpiry(item.expiry);
+    const cls = expiryClass(days);
+    const badge = expiryBadge(days, lang);
+    const catName = catLabel(cat);
+    const takenLabel = lang === 'ru' ? 'Использовано' : lang === 'sq' ? 'Marrë' : 'Entnommen';
+    const bringLabel = 'Bring!';
+    const deleteLabel = lang === 'ru' ? 'Удалить' : lang === 'sq' ? 'Fshi' : 'Löschen';
+    return `<div class="item-card expiry-${cls}">
+      <div class="item-card-main" onclick="openEditModal('${item.id}')">
+        <div class="item-emoji">${cat.emoji}</div>
+        <div class="item-body">
+          <div class="item-name">${escHtml(item.name)}</div>
+          <div class="item-meta">
+            <span class="item-qty">${item.qty} ${escHtml(item.unit)}</span>
+            <span>·</span>
+            <span>${catName}</span>
+            ${item.notes ? `<span>·</span><span style="color:var(--text-light)">${escHtml(item.notes.slice(0,30))}</span>` : ''}
+          </div>
+        </div>
+        <div class="item-right">
+          <span class="expiry-badge ${badge.cls}">${badge.text}</span>
+          <span class="added-date">${t('addedLabel')} ${formatDate(item.added)}</span>
+        </div>
+      </div>
+      <div class="item-actions">
+        <button class="action-btn action-taken" onclick="openTakenModal('${item.id}')">➖ ${takenLabel}</button>
+        <button class="action-btn action-bring" onclick="addToBring('${item.id}')">🛒 ${bringLabel}</button>
+        <button class="action-btn action-delete" onclick="deleteItem('${item.id}')">🗑 ${deleteLabel}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateTabBadges() {
+  const notifyDays = Number(db.settings.notifyDays) || 2;
+  ['freezer', 'fridge', 'pantry'].forEach(loc => {
+    const count = db.items.filter(i => {
+      if (i.location !== loc) return false;
+      const d = daysUntilExpiry(i.expiry);
+      return d !== null && d <= notifyDays;
+    }).length;
+    const btn = document.querySelector(`.tab-btn[data-tab="${loc}"]`);
+    let badge = btn.querySelector('.tab-badge');
+    if (count > 0) {
+      if (!badge) { badge = document.createElement('div'); badge.className = 'tab-badge'; btn.appendChild(badge); }
+      badge.textContent = count;
+    } else {
+      if (badge) badge.remove();
+    }
+  });
+}
+
+function renderRecipes() {
+  const el = document.getElementById('recipe-content');
+  const lang = db.settings.lang;
+  const allItems = db.items;
+
+  if (allItems.length === 0) {
+    el.innerHTML = `<div class="recipe-info-card">
+      <div class="recipe-info-title">👨‍🍳 ${t('recipeTitle')}</div>
+      <p class="recipe-tip">${t('recipeNoItems')}</p>
+    </div>`;
+    return;
+  }
+
+  const chips = allItems.map(item => {
+    const cat = getCatInfo(item.location, item.category);
+    const sel = selectedIngredients.has(item.id);
+    return `<div class="ingredient-chip ${sel ? 'selected' : ''}" onclick="toggleIngredient('${item.id}')">
+      ${cat.emoji} ${escHtml(item.name)}
+    </div>`;
+  }).join('');
+
+  const hasSelection = selectedIngredients.size > 0;
+  // Clean ingredient names for Cookidoo search: strip quantities, units, parentheses
+  function cleanForSearch(name) {
+    return name
+      .replace(/\d+[,.]?\d*\s*(g|kg|ml|l|Stück|Portion|Packung|Beutel|Dose|Glas|шт|кг|г|л|мл|упак)?\.?/gi, '')
+      .replace(/\(.*?\)/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  const searchNames = hasSelection
+    ? [...selectedIngredients].map(id => allItems.find(i => i.id === id)?.name).filter(Boolean)
+    : allItems.map(i => i.name);
+  const query = searchNames.map(cleanForSearch).filter(Boolean).join(' ');
+
+  const urlDe = `https://cookidoo.de/search/de-DE?query=${encodeURIComponent(query)}`;
+  const urlRu = `https://cookidoo.ru/search/ru-RU?query=${encodeURIComponent(query)}`;
+
+  // AI recipes section
+  const hasAiKey = _inHaPanel || db.settings.openRouterKey || db.settings.groqApiKey;
+  let aiSection = '';
+  if (!hasAiKey) {
+    aiSection = `<div class="recipe-info-card">
+      <div class="recipe-info-title">🤖 KI-Rezepte</div>
+      <p class="recipe-tip">${t('aiNoToken')}</p>
+    </div>`;
+  } else if (aiLoading) {
+    aiSection = `<div class="recipe-info-card">
+      <div class="ai-loading">
+        <div class="spinner"></div>
+        <span>${t('aiGenerating')}</span>
+      </div>
+    </div>`;
+  } else if (aiError) {
+    aiSection = `<div class="recipe-info-card">
+      ${portionSelector()}
+      <button class="ai-generate-btn" onclick="generateAIRecipes()">${t('aiGenerate')}</button>
+      <div class="ai-error" style="margin-top:12px">${escHtml(aiError)}</div>
+    </div>`;
+  } else if (aiRecipes.length > 0) {
+    const provider = db.settings.openRouterKey ? 'OpenRouter' : db.settings.groqApiKey ? 'Groq' : 'Gemini';
+    aiSection = `<div class="recipe-info-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+        <div class="recipe-info-title" style="margin:0">🤖 KI-Rezepte <span style="font-size:12px;font-weight:400;color:var(--text-muted)">(${provider})</span></div>
+        <button class="ai-generate-btn compact" onclick="generateAIRecipes()" style="background:linear-gradient(135deg,#4F46E5,#7C3AED)">↻ ${t('aiGenerate')}</button>
+      </div>
+      ${portionSelector()}
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+        ${aiRecipes.map((r, i) => renderAIRecipeCard(r, i)).join('')}
+      </div>
+    </div>`;
+  } else {
+    const provider = db.settings.openRouterKey ? 'OpenRouter (kostenlos)' : db.settings.groqApiKey ? 'Groq (kostenlos)' : 'Gemini via HA';
+    aiSection = `<div class="recipe-info-card">
+      <div class="recipe-info-title">🤖 KI-Rezepte <span style="font-size:12px;font-weight:400;color:var(--text-muted)">(${provider})</span></div>
+      <p class="recipe-tip" style="margin-bottom:12px">KI schlägt Rezepte für Thermomix, Airfryer, Backofen & Herd vor – passend zu deinen Zutaten.</p>
+      ${portionSelector()}
+      <button class="ai-generate-btn" onclick="generateAIRecipes()">${t('aiGenerate')}</button>
+    </div>`;
+  }
+
+  el.innerHTML = `
+    <div class="recipe-info-card">
+      <div class="recipe-info-title">🧾 ${t('recipeTitle')}</div>
+      <p class="recipe-tip" style="margin-bottom:12px">${t('recipeSubtitle')}</p>
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+        <button class="btn btn-outline btn-sm" onclick="selectAllIngredients()">${t('recipeSelectAll')}</button>
+        <button class="btn btn-outline btn-sm" onclick="clearIngredients()">${t('recipeClear')}</button>
+      </div>
+      <div class="ingredient-chips">${chips}</div>
+      <div class="recipe-search-row">
+        <a class="btn btn-cookidoo-de" href="${escAttr(urlDe)}" target="_blank" rel="noopener">${t('recipeSearchDe')}</a>
+        <a class="btn btn-cookidoo-ru" href="${escAttr(urlRu)}" target="_blank" rel="noopener">${t('recipeSearchRu')}</a>
+      </div>
+      <p class="recipe-tip" style="margin-top:10px">💡 ${t('recipeTip')}</p>
+    </div>
+    ${aiSection}
+    ${renderExpiringForRecipes()}
+  `;
+}
+
+const APPLIANCE_META = {
+  'Thermomix': { icon: '🌀', color: '#7C3AED', bg: '#EDE9FE', badgeClass: 'ai-badge-purple' },
+  'Airfryer':  { icon: '💨', color: '#0369A1', bg: '#E0F2FE', badgeClass: 'ai-badge-cyan' },
+  'Backofen':  { icon: '🔥', color: '#B45309', bg: '#FEF3C7', badgeClass: 'ai-badge-amber' },
+  'Herd':      { icon: '🍳', color: '#166534', bg: '#DCFCE7', badgeClass: 'ai-badge-green' },
+};
+
+function renderAIRecipeCard(r, i) {
+  const lang = db.settings.lang;
+  const name = escHtml(r.name || '');
+  const desc = escHtml(r.description || '');
+  const time = escHtml(r.time || '');
+  const diff = r.difficulty || 'Einfach';
+  const diffLabel = t('aiDifficulty')[diff] || diff;
+  const steps = Array.isArray(r.steps) ? r.steps : (Array.isArray(r.thermomixSteps) ? r.thermomixSteps : []);
+  const ingredients = Array.isArray(r.ingredients) ? r.ingredients : [];
+  const appliance = r.appliance || 'Herd';
+  const meta = APPLIANCE_META[appliance] || APPLIANCE_META['Herd'];
+
+  const cookDe = r.cookidooDe ? `https://cookidoo.de/search/de-DE?query=${encodeURIComponent(r.cookidooDe)}` : '';
+  const cookRu = r.cookidooRu ? `https://cookidoo.ru/search/ru-RU?query=${encodeURIComponent(r.cookidooRu)}` : '';
+
+  const ingredientsLabels = { de: 'Zutaten', en: 'Ingredients', ru: 'Ингредиенты', sq: 'Përbërësit' };
+  const ingredientsLabel = ingredientsLabels[lang] || 'Zutaten';
+  const stepsLabels = { de: `Zubereitung (${appliance})`, en: `Preparation (${appliance})`, ru: `Приготовление (${appliance})`, sq: `Përgatitja (${appliance})` };
+  const stepsLabel = stepsLabels[lang] || stepsLabels.de;
+  const cookidooLabels = { de: 'Ähnliches auf Cookidoo:', en: 'Find similar on Cookidoo:', ru: 'Поиск похожего на Cookidoo:', sq: 'Kërko të ngjashme në Cookidoo:' };
+  const cookidooLabel = cookidooLabels[lang] || cookidooLabels.de;
+
+  const ingredientsHtml = ingredients.length ? `
+    <div class="ai-steps-title" style="margin-top:12px;color:${meta.color}">🧾 ${ingredientsLabel}</div>
+    <ul style="margin:6px 0 0 4px;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px">
+      ${ingredients.map(ing => `<li style="font-size:16px;line-height:1.7;display:flex;gap:10px;align-items:baseline">
+        <span style="color:${meta.color};font-size:11px;flex-shrink:0">●</span>
+        <span>${escHtml(ing)}</span>
+      </li>`).join('')}
+    </ul>` : '';
+
+  const stepsHtml = steps.length ? `
+    <div class="ai-steps-title" style="margin-top:14px;color:${meta.color}">${meta.icon} ${stepsLabel}</div>
+    <div class="ai-steps">
+      ${steps.map((s, n) => `<div class="ai-step">
+        <div class="ai-step-num" style="background:${meta.bg};color:${meta.color}">${n+1}</div>
+        <div>${escHtml(s)}</div>
+      </div>`).join('')}
+    </div>` : '';
+
+  const cookidooHtml = (cookDe || cookRu) ? `
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-size:11px;color:var(--text-light);margin-bottom:6px">${cookidooLabel}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${cookDe ? `<a class="btn btn-cookidoo-de btn-sm" href="${escAttr(cookDe)}" target="_blank" rel="noopener">🔍 Cookidoo DE</a>` : ''}
+        ${cookRu ? `` : ''}
+      </div>
+    </div>` : '';
+
+  // First card auto-expanded
+  const expanded = i === 0 ? ' expanded' : '';
+
+  return `<div class="ai-recipe-card${expanded}" id="aicard-${i}" style="border-left-color:${meta.color}">
+    <div class="ai-recipe-header" onclick="toggleAICard(${i})">
+      <div class="ai-recipe-title-block">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="font-size:22px">${meta.icon}</span>
+          <div class="ai-recipe-name">${name}</div>
+        </div>
+        <div class="ai-recipe-badges">
+          ${time ? `<span class="ai-badge ai-badge-blue">⏱ ${time}</span>` : ''}
+          ${r.portions ? `<span class="ai-badge ai-badge-blue">👥 ${r.portions}</span>` : ''}
+          <span class="ai-badge ai-badge-${diff === 'Einfach' ? 'green' : 'purple'}">${diffLabel}</span>
+          <span class="ai-badge" style="background:${meta.bg};color:${meta.color}">${appliance}</span>
+        </div>
+      </div>
+      <span class="ai-recipe-expand">⌄</span>
+    </div>
+    <div class="ai-recipe-body">
+      ${desc ? `<p class="ai-recipe-desc" style="margin-top:10px">${desc}</p>` : ''}
+      ${ingredientsHtml}
+      ${stepsHtml}
+      ${cookidooHtml}
+    </div>
+  </div>`;
+}
+
+function portionSelector() {
+  const lang = db.settings.lang;
+  const portionLabels = { de: 'Portionen / Personen:', en: 'Servings / Persons:', ru: 'Порций / человек:', sq: 'Porcione / persona:' };
+  const label = portionLabels[lang] || portionLabels.de;
+  const btns = [1,2,3,4,5,6,8,10].map(n =>
+    `<button onclick="setPortions(${n})" style="
+      width:36px;height:36px;border-radius:8px;border:1.5px solid ${aiPortions===n?'#8B5CF6':'var(--border)'};
+      background:${aiPortions===n?'#EDE9FE':'var(--card)'};color:${aiPortions===n?'#6D28D9':'var(--text-muted)'};
+      font-size:13px;font-weight:600;cursor:pointer;">${n}</button>`
+  ).join('');
+  return `<div style="margin-bottom:12px">
+    <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:6px">👥 ${label}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">${btns}</div>
+  </div>`;
+}
+
+function setPortions(n) {
+  aiPortions = n;
+  renderRecipes();
+}
+
+function toggleAICard(i) {
+  const card = document.getElementById(`aicard-${i}`);
+  if (card) card.classList.toggle('expanded');
+}
+
+function parseAIResponse(raw) {
+  const cleaned = raw.replace(/```[a-z]*\s*/gi,'').replace(/```\s*/g,'').trim();
+  // Handle {recipes:[...]} wrapper from Groq json_object mode
+  if (cleaned.startsWith('{')) {
+    const obj = JSON.parse(cleaned);
+    const arr = obj.recipes || obj.results || obj.data || Object.values(obj)[0];
+    if (Array.isArray(arr)) return arr;
+  }
+  const start = cleaned.indexOf('[');
+  const end = cleaned.lastIndexOf(']');
+  if (start === -1) throw new Error('Kein Array');
+  return JSON.parse(cleaned.slice(start, end + 1));
+}
+
+async function callOpenAICompat(endpoint, apiKey, model, systemPrompt, userPrompt, extraHeaders = {}) {
+  const r = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json', ...extraHeaders },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: userPrompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 4096
+    })
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err?.error?.message || JSON.stringify(err?.error) || `HTTP ${r.status}`);
+  }
+  const d = await r.json();
+  const txt = d?.choices?.[0]?.message?.content || '';
+  if (!txt) throw new Error('Leere Antwort');
+  return txt;
+}
+
+// HA ai_task via panel.js (kein Token nötig)
+function callAIviaPanel(prompt) {
+  return new Promise((resolve, reject) => {
+    const reqId = Math.random().toString(36).slice(2);
+    const timeout = setTimeout(() => reject(new Error('panel timeout')), 45000);
+    const handler = (e) => {
+      if (e.data?.type !== 'vorrat-ai-result' || e.data.reqId !== reqId) return;
+      window.removeEventListener('message', handler);
+      clearTimeout(timeout);
+      if (e.data.error) reject(new Error(e.data.error));
+      else resolve(e.data.result);
+    };
+    window.addEventListener('message', handler);
+    window.parent.postMessage({ type: 'vorrat-ai', reqId, prompt }, '*');
+  });
+}
+
+async function callAI(systemPrompt, userPrompt) {
+  const errors = [];
+  const fullPrompt = systemPrompt + '\n\n' + userPrompt;
+
+  // === 1. HA ai_task via panel.js (kein Token, kein Key nötig) ===
+  if (_inHaPanel) {
+    try {
+      const result = await callAIviaPanel(fullPrompt);
+      // sendMessagePromise gibt { response: { data: "..." } } zurück
+      const txt = result?.response?.data
+        || result?.data
+        || (typeof result === 'string' ? result : null);
+      if (txt && txt.length > 10) return txt;
+    } catch(e) { errors.push('HA ai_task: ' + e.message); }
+  }
+
+  // === 2. OpenRouter (optionaler eigener Key) ===
+  if (db.settings.openRouterKey) {
+    try {
+      return await callOpenAICompat(
+        'https://openrouter.ai/api/v1/chat/completions',
+        db.settings.openRouterKey,
+        'meta-llama/llama-3.3-70b-instruct:free',
+        systemPrompt, userPrompt,
+        { 'HTTP-Referer': 'https://vorrat.local', 'X-Title': 'VorratsManager' }
+      );
+    } catch(e) { errors.push('OpenRouter: ' + e.message); }
+  }
+
+  // === 3. Groq (optionaler eigener Key) ===
+  if (db.settings.groqApiKey) {
+    try {
+      return await callOpenAICompat(
+        'https://api.groq.com/openai/v1/chat/completions',
+        db.settings.groqApiKey,
+        'llama-3.3-70b-versatile',
+        systemPrompt, userPrompt
+      );
+    } catch(e) { errors.push('Groq: ' + e.message); }
+  }
+
+  throw new Error(errors.join(' | ') || 'Kein KI-Dienst verfügbar');
+}
+
+async function generateAIRecipes() {
+  const hasKey = _inHaPanel || db.settings.openRouterKey || db.settings.groqApiKey;
+  if (!hasKey) { showToast(t('aiNoToken')); return; }
+
+  const allItems = db.items;
+  if (allItems.length === 0) return;
+
+  const activeItems = selectedIngredients.size > 0
+    ? allItems.filter(i => selectedIngredients.has(i.id))
+    : allItems;
+
+  const ingredientList = activeItems.map(i => {
+    const cat = getCatInfo(i.location, i.category);
+    return `${i.name} (${cat.en || cat.de})`;
+  }).join(', ');
+
+  aiLoading = true;
+  aiError = '';
+  aiRecipes = [];
+  renderRecipes();
+
+  const lang = db.settings.lang;
+  const langNames = { de: 'German', en: 'English', ru: 'Russian', sq: 'Albanian' };
+  const outputLang = langNames[lang] || 'German';
+
+  const systemPrompt = `You are an expert cook with hands-on knowledge of Thermomix TM6, Airfryer, oven and stovetop. Reply ONLY with a JSON object — no markdown, no extra text.`;
+
+  const userPrompt = `Available ingredients: ${ingredientList}. Servings: ${aiPortions}.
+
+Create 5 complete, standalone recipes: 1x Thermomix, 1x Airfryer, 1x Oven, 1x Stovetop, 1x any appliance.
+
+Reply with JSON: {"recipes":[...]}
+Required fields per recipe:
+- name: recipe name in ${outputLang} (creative and appetizing)
+- description: 2-3 sentence description in ${outputLang} (appetizing and informative)
+- appliance: exactly one of: Thermomix / Airfryer / Backofen / Herd
+- time: total time including prep, e.g. "45 min"
+- portions: ${aiPortions}
+- difficulty: Einfach / Mittel / Fortgeschritten
+- ingredients: array of ALL ingredients with exact amounts for ${aiPortions} servings, in ${outputLang}
+  Example: ["600g chicken breast","800g potatoes","2 onions","2 tbsp olive oil","salt and pepper"]
+- steps: array of VERY DETAILED steps (min 5-8 steps) in ${outputLang}.
+  Thermomix: each step with exact speed (1-10 or Turbo), temperature (Varoma/90°C/etc.) and time. E.g. "Add onions, 5 sec | Speed 5. Scrape down."
+  Airfryer: preheat (temp/time), cooking time with temperature, remind to flip halfway.
+  Oven (Backofen): exact preheat temperature, fan or top/bottom heat, exact duration.
+  Stovetop (Herd): heat level (low/medium/high), cooking time, visual doneness check.
+- cookidooDe: 2-3 words for Cookidoo search in German
+- usedIngredients: array of used ingredients from the input list`;
+
+  try {
+    const raw = await callAI(systemPrompt, userPrompt);
+    const parsed = parseAIResponse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) throw new Error('Leere Antwort');
+    aiRecipes = parsed;
+    aiLoading = false;
+    aiError = '';
+  } catch(e) {
+    aiLoading = false;
+    aiError = e.message;
+  }
+
+  renderRecipes();
+}
+
+function renderExpiringForRecipes() {
+  const lang = db.settings.lang;
+  const notifyDays = Number(db.settings.notifyDays) || 2;
+  const critical = db.items.filter(i => { const d = daysUntilExpiry(i.expiry); return d !== null && d <= notifyDays; });
+  if (critical.length === 0) return '';
+
+  const chips = critical.map(item => {
+    const cat = getCatInfo(item.location, item.category);
+    const days = daysUntilExpiry(item.expiry);
+    const badge = expiryBadge(days, lang);
+    return `<div class="item-card expiry-critical" onclick="openEditModal('${item.id}')" style="cursor:pointer">
+      <div class="item-emoji">${cat.emoji}</div>
+      <div class="item-body">
+        <div class="item-name">${escHtml(item.name)}</div>
+        <div class="item-meta">${item.qty} ${escHtml(item.unit)}</div>
+      </div>
+      <div class="item-right">
+        <span class="expiry-badge ${badge.cls}">${badge.text}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div class="recipe-info-card">
+    <div class="recipe-info-title">🔴 ${lang === 'ru' ? 'Истекает срок' : lang === 'sq' ? 'Skadon shpejt' : 'Läuft bald ab'}</div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">${chips}</div>
+  </div>`;
+}
+
+function toggleIngredient(id) {
+  if (selectedIngredients.has(id)) selectedIngredients.delete(id);
+  else selectedIngredients.add(id);
+  renderRecipes();
+}
+
+function selectAllIngredients() {
+  db.items.forEach(i => selectedIngredients.add(i.id));
+  renderRecipes();
+}
+
+function clearIngredients() {
+  selectedIngredients.clear();
+  renderRecipes();
+}
+
+// ============================================================
+// TAB SWITCH
+// ============================================================
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById(`tab-${tab}`)?.classList.add('active');
+  document.querySelector(`.tab-btn[data-tab="${tab}"]`)?.classList.add('active');
+
+  // Update FAB visibility
+  const fab = document.getElementById('fab-btn');
+  fab.style.display = (tab === 'recipes') ? 'none' : 'flex';
+
+  if (tab === 'pantry') renderList('pantry');
+
+  if (tab === 'recipes') renderRecipes();
+}
+
+// ============================================================
+// MODALS
+// ============================================================
+function openAddModal() {
+  editingId = null;
+  const currentTab = document.querySelector('.tab-content.active')?.id?.replace('tab-', '') || 'freezer';
+  modalLocation = ['fridge', 'pantry'].includes(currentTab) ? currentTab : 'freezer';
+
+  document.getElementById('modal-title').textContent = t('addTitle');
+  document.getElementById('item-name').value = '';
+  document.getElementById('item-qty').value = '1';
+  document.getElementById('item-added').value = today();
+  document.getElementById('item-expiry').value = '';
+  document.getElementById('item-notes').value = '';
+
+  updateLocationToggle();
+  updateCategorySelect();
+  updateUnitSelect();
+
+  document.getElementById('modal-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('item-name').focus(), 300);
+}
+
+function openEditModal(id) {
+  editingId = id;
+  const item = db.items.find(i => i.id === id);
+  if (!item) return;
+
+  modalLocation = item.location;
+  document.getElementById('modal-title').textContent = t('editTitle');
+  document.getElementById('item-name').value = item.name;
+  document.getElementById('item-qty').value = item.qty;
+  document.getElementById('item-added').value = item.added;
+  document.getElementById('item-expiry').value = item.expiry || '';
+  document.getElementById('item-notes').value = item.notes || '';
+
+  updateLocationToggle();
+  updateCategorySelect(item.category);
+  updateUnitSelect(item.unit);
+
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function updateLocationToggle() {
+  document.querySelectorAll('.loc-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.loc === modalLocation);
+  });
+  updateCategorySelect();
+}
+
+function setModalLocation(loc) {
+  modalLocation = loc;
+  updateLocationToggle();
+  updateCategorySelect();
+}
+
+function updateCategorySelect(selected = null) {
+  const el = document.getElementById('item-category');
+  const lang = db.settings.lang;
+  el.innerHTML = CATEGORIES[modalLocation].map(cat => {
+    const label = catLabel(cat);
+    const sel = selected === cat.id ? 'selected' : '';
+    return `<option value="${cat.id}" ${sel}>${cat.emoji} ${label}</option>`;
+  }).join('');
+}
+
+function updateUnitSelect(selected = null) {
+  const el = document.getElementById('item-unit');
+  const lang = db.settings.lang;
+  el.innerHTML = (UNITS[lang] || UNITS['de']).map(u => {
+    const sel = selected === u ? 'selected' : '';
+    return `<option value="${u}" ${sel}>${u}</option>`;
+  }).join('');
+}
+
+function saveItem() {
+  const name = document.getElementById('item-name').value.trim();
+  if (!name) { document.getElementById('item-name').focus(); return; }
+
+  const item = {
+    id: editingId || generateId(),
+    name,
+    location: modalLocation,
+    category: document.getElementById('item-category').value,
+    qty: parseFloat(document.getElementById('item-qty').value) || 1,
+    unit: document.getElementById('item-unit').value,
+    added: document.getElementById('item-added').value || today(),
+    expiry: document.getElementById('item-expiry').value || null,
+    notes: document.getElementById('item-notes').value.trim(),
+  };
+
+  if (editingId) {
+    const idx = db.items.findIndex(i => i.id === editingId);
+    if (idx !== -1) db.items[idx] = item;
+  } else {
+    db.items.unshift(item);
+  }
+
+  saveDb();
+  closeAllModals();
+  renderAll();
+  showToast(t('toastSaved'));
+}
+
+function deleteItem(id) {
+  if (!confirm(t('confirmDelete'))) return;
+  db.items = db.items.filter(i => i.id !== id);
+  saveDb();
+  closeAllModals();
+  renderAll();
+  showToast(t('toastDeleted'));
+}
+
+// ============================================================
+// ENTNOMMEN / BRING!
+// ============================================================
+let takenItemId = null;
+let takenAmount = 1;
+
+function openTakenModal(id) {
+  const item = db.items.find(i => i.id === id);
+  if (!item) return;
+  const lang = db.settings.lang;
+  takenItemId = id;
+  takenAmount = Math.min(1, item.qty);
+
+  // Title + labels
+  document.getElementById('taken-title').textContent = lang === 'ru' ? 'Взято' : lang === 'sq' ? 'Marrë' : 'Entnommen';
+  document.getElementById('taken-label').textContent = lang === 'ru' ? 'Сколько взять?' : lang === 'sq' ? 'Sa do të merrni?' : 'Wie viel entnommen?';
+  document.getElementById('taken-cancel').textContent = lang === 'ru' ? 'Отмена' : lang === 'sq' ? 'Anulo' : 'Abbrechen';
+  document.getElementById('taken-confirm').textContent = lang === 'ru' ? 'Подтвердить' : lang === 'sq' ? 'Konfirmo' : 'Bestätigen';
+  document.getElementById('bring-toggle-label').textContent = '🛒 ' + (lang === 'ru' ? 'Добавить в Bring!' : lang === 'sq' ? 'Shto në Bring!' : 'Zu Bring! hinzufügen');
+
+  // Item info
+  const loc = LOCATIONS.find(l => l.id === item.location);
+  const locName = loc ? (loc[lang] || loc.de) : item.location;
+  document.getElementById('taken-item-info').innerHTML =
+    `<strong>${item.name}</strong> &nbsp;·&nbsp; ${locName} &nbsp;·&nbsp; ${item.qty} ${item.unit || ''}`;
+
+  // Unit
+  document.getElementById('taken-qty-unit').textContent = item.unit || '';
+
+  // Quick buttons: 1, half, all
+  const half = Math.round(item.qty / 2 * 10) / 10;
+  const all = item.qty;
+  const quickVals = [...new Set([1, half, all].filter(v => v > 0 && v <= all))].sort((a,b)=>a-b);
+  document.getElementById('taken-quick-btns').innerHTML = quickVals.map(v =>
+    `<button class="quick-btn" onclick="setTaken(${v})">${v}</button>`
+  ).join('');
+
+  // Display
+  document.getElementById('taken-qty-display').textContent = takenAmount;
+
+  // Bring checkbox: show only if token set
+  document.getElementById('bring-toggle-wrap').style.display = db.settings.haToken ? '' : 'none';
+  document.getElementById('bring-checkbox').checked = true;
+
+  document.getElementById('taken-overlay').classList.add('open');
+}
+
+function setTaken(val) {
+  const item = db.items.find(i => i.id === takenItemId);
+  if (!item) return;
+  takenAmount = Math.max(0.1, Math.min(item.qty, val));
+  document.getElementById('taken-qty-display').textContent = takenAmount;
+}
+
+function adjustTaken(delta) {
+  const item = db.items.find(i => i.id === takenItemId);
+  if (!item) return;
+  const step = item.qty <= 5 ? 0.5 : 1;
+  takenAmount = Math.max(0.5, Math.min(item.qty, Math.round((takenAmount + delta * step) * 10) / 10));
+  document.getElementById('taken-qty-display').textContent = takenAmount;
+}
+
+async function confirmTaken() {
+  const item = db.items.find(i => i.id === takenItemId);
+  if (!item) return;
+  const addBring = document.getElementById('bring-checkbox').checked && db.settings.haToken;
+  if (addBring) await addToBring(takenItemId);
+  item.qty = Math.max(0, Math.round((item.qty - takenAmount) * 10) / 10);
+  if (item.qty <= 0) db.items = db.items.filter(i => i.id !== takenItemId);
+  saveDb();
+  closeAllModals();
+  renderAll();
+  const lang = db.settings.lang;
+  showToast(lang === 'ru' ? '✓ Обновлено' : lang === 'sq' ? '✓ Përditësuar' : '✓ Aktualisiert');
+}
+
+async function addToBring(id) {
+  const item = db.items.find(i => i.id === id);
+  if (!item || !db.settings.haToken) return;
+  try {
+    await haCallService('todo', 'add_item', { entity_id: 'todo.einkauf', item: item.name });
+    showToast('🛒 Bring! ✓');
+  } catch(e) {
+    showToast('🛒 Fehler');
+  }
+}
+
+// ============================================================
+// BRING! SYNC (erledigte Artikel → FridgeApp importieren)
+// ============================================================
+let bringImportItems = []; // [{summary, loc, uid}]
+
+function renderBringImportModal(lang, locOptions) {
+  document.getElementById('bring-import-body').innerHTML = `
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">${t('bringImportHint')}</p>
+    ${bringImportItems.map((it, idx) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="flex:1;font-weight:600;font-size:15px">${escHtml(it.summary)}</div>
+        <select onchange="bringImportItems[${idx}].loc=this.value"
+          style="border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:13px;background:var(--card)">
+          ${locOptions.map(o => `<option value="${o.id}" ${o.id===it.loc?'selected':''}>${o.label}</option>`).join('')}
+        </select>
+      </div>`).join('')}
+  `;
+  document.getElementById('bring-import-cancel').textContent = lang==='ru' ? 'Abbrechen' : 'Abbrechen';
+  document.getElementById('bring-import-confirm').textContent = lang==='ru' ? 'Добавить' : 'Hinzufügen';
+}
+
+async function syncBring() {
+  const lang = db.settings.lang;
+  if (!getToken()) {
+    showToast(lang === 'ru' ? 'Токен не задан' : lang === 'sq' ? 'Token nuk është vendosur' : 'Kein HA Token');
+    return;
+  }
+  showToast('⏳ Lade Bring!…');
+  try {
+    const resp = await fetch(
+      `${db.settings.haUrl}/api/services/todo/get_items?return_response`,
+      { method: 'POST',
+        headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entity_id: 'todo.einkauf', status: 'completed' }) }
+    );
+    if (!resp.ok) throw new Error(resp.status);
+    const data = await resp.json();
+    const raw = data?.service_response?.['todo.einkauf']?.items || [];
+    const items = raw.filter(i => i.status === 'completed');
+
+    if (items.length === 0) {
+      showToast(t('bringImportNone'));
+      return;
+    }
+
+    // Defaults: pantry for non-food-fresh items
+    bringImportItems = items.map(i => ({ summary: i.summary || i.uid || '?', loc: 'pantry', uid: i.uid }));
+
+    const locOptions = [
+      { id: 'pantry',  label: lang === 'ru' ? '🏺 Кладовая'   : lang === 'sq' ? '🏺 Qilar'      : '🏺 Vorratsraum' },
+      { id: 'fridge',  label: lang === 'ru' ? '🥬 Холодильник' : lang === 'sq' ? '🥬 Frigorifer'  : '🥬 Kühlschrank' },
+      { id: 'freezer', label: lang === 'ru' ? '🧊 Морозильник' : lang === 'sq' ? '🧊 Ngrirës'     : '🧊 Gefriertruhe' },
+    ];
+
+    renderBringImportModal(lang, locOptions);
+    document.getElementById('bring-import-overlay').classList.add('open');
+  } catch(e) {
+    showToast(t('bringImportError'));
+  }
+}
+
+async function confirmBringImport() {
+  let added = 0;
+  const toRemove = [];
+  bringImportItems.forEach(it => {
+    const loc = it.loc;
+    const cats = CATEGORIES[loc];
+    db.items.push({
+      id: generateId(),
+      name: it.summary,
+      location: loc,
+      category: cats[cats.length - 1].id,
+      qty: 1,
+      unit: db.settings.lang === 'ru' ? 'шт' : db.settings.lang === 'sq' ? 'copë' : 'Stück',
+      added: today(),
+      expiry: '',
+      notes: ''
+    });
+    added++;
+    if (it.uid) toRemove.push(it.uid);
+  });
+  saveDb();
+  closeAllModals();
+  renderAll();
+  showToast(t('bringImportDone', added));
+
+  // Mark imported items as "needsAction" again in Bring! so they're cleared from completed
+  if (db.settings.haToken && bringImportItems.length > 0) {
+    try {
+      for (const it of bringImportItems) {
+        await haCallService('todo', 'update_item', {
+          entity_id: 'todo.einkauf',
+          item: it.summary,
+          status: 'needsAction'
+        });
+      }
+    } catch(e) {}
+  }
+
+  bringImportItems = [];
+}
+
+// ============================================================
+// SETTINGS
+// ============================================================
+function applyDarkMode() {
+  const on = !!db.settings.darkMode;
+  document.body.classList.toggle('dark', on);
+  const toggle = document.getElementById('dark-toggle');
+  const knob   = document.getElementById('dark-knob');
+  const label  = document.getElementById('dark-label');
+  const icon   = document.getElementById('dark-icon');
+  if (toggle) {
+    toggle.style.background = on ? '#3B82F6' : 'var(--border)';
+    if (knob) knob.style.left = on ? '22px' : '2px';
+    if (label) label.textContent = on ? 'Ein' : 'Aus';
+    if (icon) icon.textContent = on ? '☀️' : '🌙';
+  }
+}
+
+function toggleDarkMode() {
+  db.settings.darkMode = !db.settings.darkMode;
+  saveDb();
+  applyDarkMode();
+}
+
+function openSettings() {
+  document.getElementById('ha-url').value = db.settings.haUrl || '';
+  document.getElementById('ha-token').value = db.settings.haToken || '';
+  document.getElementById('notify-days').value = db.settings.notifyDays || 2;
+  document.getElementById('openrouter-key').value = db.settings.openRouterKey || '';
+  document.getElementById('groq-key').value = db.settings.groqApiKey || '';
+  applyDarkMode();
+  document.getElementById('settings-overlay').classList.add('open');
+}
+
+function saveSettings() {
+  db.settings.haUrl = document.getElementById('ha-url').value.trim().replace(/\/$/, '');
+  db.settings.haToken = document.getElementById('ha-token').value.trim();
+  db.settings.notifyDays = parseInt(document.getElementById('notify-days').value) || 2;
+  db.settings.openRouterKey = document.getElementById('openrouter-key').value.trim();
+  db.settings.groqApiKey = document.getElementById('groq-key').value.trim();
+  saveDb(); // localStorage + Server-Push (damit Keys auf alle Geräte kommen)
+  closeAllModals();
+  renderAll();
+  showToast(t('toastSettings'));
+}
+
+// ============================================================
+// LANG
+// ============================================================
+function setLang(lang) {
+  db.settings.lang = lang;
+  saveDb();
+  renderAll();
+}
+
+// ============================================================
+// MODAL HELPERS
+// ============================================================
+function closeModal(e) {
+  if (e.target === e.currentTarget) closeAllModals();
+}
+
+function closeAllModals() {
+  document.querySelectorAll('.overlay').forEach(el => el.classList.remove('open'));
+}
+
+// ============================================================
+// DATA EXPORT/IMPORT
+// ============================================================
+function exportData() {
+  const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `fridgeapp_${today()}.json`;
+  a.click();
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const imported = JSON.parse(ev.target.result);
+      if (imported.items) {
+        db = imported;
+        saveDb();
+        closeAllModals();
+        renderAll();
+        showToast(t('toastSaved'));
+      }
+    } catch(err) { alert('Ungültige Datei'); }
+  };
+  reader.readAsText(file);
+}
+
+function clearAllData() {
+  db.items = [];
+  saveDb();
+  renderAll();
+  showToast(t('toastDeleted'));
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(str) {
+  return String(str).replace(/"/g,'&quot;');
+}
+
+// ============================================================
+// INIT
+// ============================================================
+async function autoCheckBring() {
+  if (!getToken()) return;
+  try {
+    const resp = await fetch(
+      `${db.settings.haUrl}/api/services/todo/get_items?return_response`,
+      { method:'POST',
+        headers:{ Authorization:`Bearer ${getToken()}`, 'Content-Type':'application/json' },
+        body: JSON.stringify({ entity_id: 'todo.einkauf', status: 'completed' }) }
+    );
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const items = (data?.service_response?.['todo.einkauf']?.items || [])
+      .filter(i => i.status === 'completed');
+    if (items.length === 0) return;
+
+    // Show badge on Bring! Sync button in pantry tab
+    const syncBtn = document.querySelector('[onclick="syncBring()"]');
+    if (syncBtn) {
+      syncBtn.textContent = `🛒 Bring! Sync (${items.length})`;
+      syncBtn.style.animation = 'pulse 1.5s ease-in-out 3';
+    }
+  } catch(e) {}
+}
+
+async function init() {
+  loadDb(); // Settings + Items aus localStorage (schnell, sofort)
+  applyDarkMode();
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.lang === db.settings.lang);
+  });
+  renderAll(); // Sofort rendern mit localStorage-Daten
+
+  // Server-Daten laden (authoritative Quelle für Items + geteilte Settings)
+  const serverData = await loadFromServer();
+  if (serverData?.items && Array.isArray(serverData.items)) {
+    db.items = serverData.items;
+    applySharedSettings(serverData.settings); // API-Keys etc. vom Server übernehmen
+    _lastSavedTs = serverData.updated || '';
+    localStorage.setItem('fridgeapp_v1', JSON.stringify(db)); // Cache aktualisieren
+    renderAll(); // Mit Server-Daten neu rendern
+    // Falls lokale Settings Keys haben die der Server nicht hat → einmalig pushen
+    const srv = serverData.settings || {};
+    const localHasMore = SHARED_SETTINGS.some(k => db.settings[k] && !srv[k]);
+    if (localHasMore) saveToServer();
+  } else if (db.items.length > 0 && db.settings.haToken) {
+    // Kein Server-File vorhanden aber localStorage hat Daten → einmalig hochladen
+    await saveToServer();
+  }
+
+  setTimeout(checkExpiryAndNotify, 2000);
+  setTimeout(autoCheckBring, 3000);
+}
+
+init();
+</script>
+</body>
+</html>
