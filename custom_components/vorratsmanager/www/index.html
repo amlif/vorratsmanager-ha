@@ -1537,6 +1537,7 @@ const T = {
     toastSettings: 'Einstellungen gespeichert ✓',
     toastNotified: 'Benachrichtigung gesendet ✓',
     confirmDelete: 'Löschen?',
+    confirmRemoveFav: 'Rezept aus Favoriten entfernen?',
     headerFreezer: '❄️ VorratsManager',
     headerFridge: '🥬 VorratsManager',
     headerPantry: '🏺 VorratsManager',
@@ -1618,6 +1619,7 @@ const T = {
     toastSettings: 'Настройки сохранены ✓',
     toastNotified: 'Уведомление отправлено ✓',
     confirmDelete: 'Удалить?',
+    confirmRemoveFav: 'Убрать рецепт из избранного?',
     headerFreezer: '❄️ VorratsManager',
     headerFridge: '🥬 VorratsManager',
     headerPantry: '🏺 VorratsManager',
@@ -1699,6 +1701,7 @@ const T = {
     toastSettings: 'Settings saved ✓',
     toastNotified: 'Notification sent ✓',
     confirmDelete: 'Delete?',
+    confirmRemoveFav: 'Remove recipe from favorites?',
     headerFreezer: '❄️ PantryManager',
     headerFridge: '🥬 PantryManager',
     headerPantry: '🏺 PantryManager',
@@ -1780,6 +1783,7 @@ const T = {
     toastSettings: 'Cilësimet u ruajtën ✓',
     toastNotified: 'Njoftimi u dërgua ✓',
     confirmDelete: 'Fshi?',
+    confirmRemoveFav: 'Hiq recetën nga të preferuarat?',
     headerFreezer: '❄️ VorratsManager',
     headerFridge: '🥬 VorratsManager',
     headerPantry: '🏺 VorratsManager',
@@ -2726,6 +2730,7 @@ function saveAIRecipe(idx) {
 }
 
 function removeSavedRecipe(idx) {
+  if (!confirm(t('confirmRemoveFav'))) return;
   db.savedRecipes.splice(idx, 1);
   saveDb();
   renderRecipes();
