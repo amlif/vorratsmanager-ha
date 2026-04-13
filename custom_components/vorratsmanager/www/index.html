@@ -2725,7 +2725,12 @@ function removeSavedRecipe(idx) {
 }
 
 function renderSavedRecipes() {
-  if (db.savedRecipes.length === 0) return '';
+  if (db.savedRecipes.length === 0) {
+    return `<div class="recipe-info-card">
+      <div class="recipe-info-title">${t('savedRecipesTitle')}</div>
+      <p class="recipe-tip" style="margin-top:8px">${t('noSavedRecipes')}</p>
+    </div>`;
+  }
   const cards = db.savedRecipes.map((r, i) => {
     const appliance = r.appliance || 'Herd';
     const meta = APPLIANCE_META[appliance] || APPLIANCE_META['Herd'];

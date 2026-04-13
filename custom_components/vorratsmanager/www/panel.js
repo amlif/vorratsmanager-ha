@@ -23,7 +23,7 @@ class VorratsManagerPanel extends HTMLElement {
     shadow.appendChild(style);
 
     const iframe = document.createElement("iframe");
-    iframe.src = "/local/vorratsmanager/index.html";
+    iframe.src = "/local/vorratsmanager/index.html?v=1.3.1";
     this._iframe = iframe;
     this._iframeLoaded = false;
 
