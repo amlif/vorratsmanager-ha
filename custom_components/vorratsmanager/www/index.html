@@ -500,8 +500,8 @@
     }
     .btn-primary { background: var(--primary); color: white; }
     .btn-primary:hover { background: var(--primary-dark); }
-    .btn-cookidoo-de { background: #E8501A; color: white; }
-    .btn-cookidoo-ru { background: #CC0000; color: white; }
+    .btn-cookidoo { background: #E8501A; color: white; }
+    .btn-cookidoo:hover { background: #c7421a; }
     .btn-outline {
       background: transparent;
       border: 1.5px solid var(--border);
@@ -999,6 +999,29 @@
       flex-wrap: wrap;
     }
 
+    .btn-save-recipe {
+      background: none;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: 16px;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: background 0.15s, color 0.15s;
+      flex-shrink: 0;
+    }
+    .btn-save-recipe:hover { background: #FEF3C7; color: #B45309; border-color: #F59E0B; }
+    .btn-save-recipe.saved { background: #FEF3C7; color: #B45309; border-color: #F59E0B; }
+
+    .saved-recipe-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      border-left: 4px solid #F59E0B;
+    }
+    body.dark .saved-recipe-card { background: var(--card); }
+
     .ai-error {
       background: #FEF2F2;
       border: 1px solid #FECACA;
@@ -1486,14 +1509,18 @@ const T = {
     statCritical: 'Abläuft bald',
     statSoon: 'Diese Woche',
     recipeTitle: 'Rezeptvorschläge',
-    recipeSubtitle: 'Wähle Zutaten für Cookidoo-Suche:',
+    recipeSubtitle: 'Wähle Zutaten aus – oder Cookidoo sucht automatisch mit den 5 bald ablaufenden Produkten:',
     recipeSelect: 'Artikel auswählen',
-    recipeSearchDe: '🔍 Cookidoo DE',
-    recipeSearchRu: '🔍 Cookidoo RU',
+    recipeSearch: '🔍 Cookidoo',
     recipeSelectAll: 'Alle',
     recipeClear: 'Keine',
-    recipeTip: 'Cookidoo öffnet sich mit deinen ausgewählten Zutaten als Suchbegriff.',
+    recipeTip: 'Tipp: Wähle 2–5 Hauptzutaten für beste Suchergebnisse. Sprache auf Cookidoo umschaltbar.',
     recipeNoItems: 'Noch keine Artikel eingelagert.',
+    savedRecipesTitle: '⭐ Gespeicherte Rezepte',
+    saveRecipe: '⭐',
+    recipeAlreadySaved: 'Bereits gespeichert',
+    noSavedRecipes: 'Noch keine Rezepte gespeichert.',
+    removeSaved: '✕ Entfernen',
     aiGenerate: '🤖 KI-Rezepte generieren',
     aiGenerating: '⏳ KI generiert Rezepte…',
     aiError: 'Fehler beim Generieren.',
@@ -1563,14 +1590,18 @@ const T = {
     statCritical: 'Истекает скоро',
     statSoon: 'На этой неделе',
     recipeTitle: 'Рецепты',
-    recipeSubtitle: 'Выберите ингредиенты для поиска в Cookidoo:',
+    recipeSubtitle: 'Выберите ингредиенты – или Cookidoo автоматически использует 5 ближайших по сроку продуктов:',
     recipeSelect: 'Выбрать продукты',
-    recipeSearchDe: '🔍 Cookidoo DE',
-    recipeSearchRu: '🔍 Cookidoo RU',
+    recipeSearch: '🔍 Cookidoo',
     recipeSelectAll: 'Все',
     recipeClear: 'Сбросить',
-    recipeTip: 'Cookidoo откроется с выбранными ингредиентами в строке поиска.',
+    recipeTip: 'Совет: выберите 2–5 основных ингредиентов для лучших результатов. Язык на Cookidoo можно изменить.',
     recipeNoItems: 'Список продуктов пуст.',
+    savedRecipesTitle: '⭐ Сохранённые рецепты',
+    saveRecipe: '⭐',
+    recipeAlreadySaved: 'Уже сохранено',
+    noSavedRecipes: 'Нет сохранённых рецептов.',
+    removeSaved: '✕ Удалить',
     aiGenerate: '🤖 Сгенерировать рецепты',
     aiGenerating: '⏳ ИИ генерирует рецепты…',
     aiError: 'Ошибка генерации.',
@@ -1640,14 +1671,18 @@ const T = {
     statCritical: 'Expiring soon',
     statSoon: 'This week',
     recipeTitle: 'Recipe suggestions',
-    recipeSubtitle: 'Select ingredients for Cookidoo search:',
+    recipeSubtitle: 'Select ingredients – or Cookidoo will auto-search with the 5 soonest-expiring items:',
     recipeSelect: 'Select items',
-    recipeSearchDe: '🔍 Cookidoo DE',
-    recipeSearchRu: '🔍 Cookidoo RU',
+    recipeSearch: '🔍 Cookidoo',
     recipeSelectAll: 'All',
     recipeClear: 'None',
-    recipeTip: 'Cookidoo opens with your selected ingredients as search term.',
+    recipeTip: 'Tip: pick 2–5 key ingredients for best results. Language can be changed on Cookidoo.',
     recipeNoItems: 'No items stored yet.',
+    savedRecipesTitle: '⭐ Saved Recipes',
+    saveRecipe: '⭐',
+    recipeAlreadySaved: 'Already saved',
+    noSavedRecipes: 'No saved recipes yet.',
+    removeSaved: '✕ Remove',
     aiGenerate: '🤖 Generate AI recipes',
     aiGenerating: '⏳ AI is generating recipes…',
     aiError: 'Error generating recipes.',
@@ -1717,14 +1752,18 @@ const T = {
     statCritical: 'Skadon shpejt',
     statSoon: 'Këtë javë',
     recipeTitle: 'Sugjerime recetash',
-    recipeSubtitle: 'Zgjidhni përbërës për kërkim në Cookidoo:',
+    recipeSubtitle: 'Zgjidhni përbërës – ose Cookidoo do të kërkojë automatikisht me 5 produktet që skadojnë shpejt:',
     recipeSelect: 'Zgjidhni produktet',
-    recipeSearchDe: '🔍 Cookidoo DE',
-    recipeSearchRu: '🔍 Cookidoo RU',
+    recipeSearch: '🔍 Cookidoo',
     recipeSelectAll: 'Të gjitha',
     recipeClear: 'Asnjë',
-    recipeTip: 'Cookidoo hapet me përbërësit e zgjedhur si kërkim.',
+    recipeTip: 'Këshillë: zgjidhni 2–5 përbërës kryesorë për rezultate më të mira. Gjuha mund të ndryshohet në Cookidoo.',
     recipeNoItems: 'Ende nuk keni produkte të shtuar.',
+    savedRecipesTitle: '⭐ Recetat e ruajtura',
+    saveRecipe: '⭐',
+    recipeAlreadySaved: 'Tashmë e ruajtur',
+    noSavedRecipes: 'Ende nuk keni receta të ruajtura.',
+    removeSaved: '✕ Hiq',
     aiGenerate: '🤖 Gjenero receta me AI',
     aiGenerating: '⏳ AI po gjeneron receta…',
     aiError: 'Gabim gjatë gjenerimit.',
@@ -1859,6 +1898,7 @@ let aiRecipes = [];
 let aiLoading = false;
 let aiError = '';
 let aiPortions = 4;
+let savedRecipes = []; // Device-local, not synced to server
 
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -1869,11 +1909,19 @@ function loadDb() {
     const saved = localStorage.getItem('fridgeapp_v1');
     if (saved) db = JSON.parse(saved);
   } catch(e) {}
+  try {
+    const sr = localStorage.getItem('vorratsmanager_saved_recipes');
+    if (sr) savedRecipes = JSON.parse(sr);
+  } catch(e) {}
 }
 
 function saveDb() {
   localStorage.setItem('fridgeapp_v1', JSON.stringify(db));
   saveToServer(); // Echtzeit-Sync an alle Geräte
+}
+
+function saveSavedRecipes() {
+  localStorage.setItem('vorratsmanager_saved_recipes', JSON.stringify(savedRecipes));
 }
 
 // ============================================================
@@ -2261,13 +2309,19 @@ function renderRecipes() {
       .trim();
   }
 
-  const searchNames = hasSelection
-    ? [...selectedIngredients].map(id => allItems.find(i => i.id === id)?.name).filter(Boolean)
-    : allItems.map(i => i.name);
-  const query = searchNames.map(cleanForSearch).filter(Boolean).join(' ');
-
-  const urlDe = `https://cookidoo.de/search/de-DE?query=${encodeURIComponent(query)}`;
-  const urlRu = `https://cookidoo.ru/search/ru-RU?query=${encodeURIComponent(query)}`;
+  let searchItems;
+  if (hasSelection) {
+    searchItems = [...selectedIngredients].map(id => allItems.find(i => i.id === id)).filter(Boolean);
+  } else {
+    // Auto: pick up to 5 items sorted by expiry (soonest first, no-expiry at end)
+    searchItems = [...allItems].sort((a, b) => {
+      const da = a.expiry ? new Date(a.expiry).getTime() : Infinity;
+      const db2 = b.expiry ? new Date(b.expiry).getTime() : Infinity;
+      return da - db2;
+    }).slice(0, 5);
+  }
+  const query = searchItems.map(i => cleanForSearch(i.name)).filter(Boolean).join(' ');
+  const urlCookidoo = `https://cookidoo.de/search/de-DE?query=${encodeURIComponent(query)}`;
 
   // AI recipes section
   const hasAiKey = _inHaPanel || db.settings.openRouterKey || db.settings.groqApiKey;
@@ -2322,12 +2376,12 @@ function renderRecipes() {
       </div>
       <div class="ingredient-chips">${chips}</div>
       <div class="recipe-search-row">
-        <a class="btn btn-cookidoo-de" href="${escAttr(urlDe)}" target="_blank" rel="noopener">${t('recipeSearchDe')}</a>
-        <a class="btn btn-cookidoo-ru" href="${escAttr(urlRu)}" target="_blank" rel="noopener">${t('recipeSearchRu')}</a>
+        <a class="btn btn-cookidoo" href="${escAttr(urlCookidoo)}" target="_blank" rel="noopener">${t('recipeSearch')}</a>
       </div>
       <p class="recipe-tip" style="margin-top:10px">💡 ${t('recipeTip')}</p>
     </div>
     ${aiSection}
+    ${renderSavedRecipes()}
     ${renderExpiringForRecipes()}
   `;
 }
@@ -2383,7 +2437,7 @@ function renderAIRecipeCard(r, i) {
     <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
       <div style="font-size:11px;color:var(--text-light);margin-bottom:6px">${cookidooLabel}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        ${cookDe ? `<a class="btn btn-cookidoo-de btn-sm" href="${escAttr(cookDe)}" target="_blank" rel="noopener">🔍 Cookidoo DE</a>` : ''}
+        ${cookDe ? `<a class="btn btn-cookidoo btn-sm" href="${escAttr(cookDe)}" target="_blank" rel="noopener">🔍 Cookidoo</a>` : ''}
         ${cookRu ? `` : ''}
       </div>
     </div>` : '';
@@ -2405,7 +2459,10 @@ function renderAIRecipeCard(r, i) {
           <span class="ai-badge" style="background:${meta.bg};color:${meta.color}">${appliance}</span>
         </div>
       </div>
-      <span class="ai-recipe-expand">⌄</span>
+      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+        <button class="btn-save-recipe${savedRecipes.some(s => s.name === r.name) ? ' saved' : ''}" title="${t('saveRecipe')}" onclick="event.stopPropagation();saveAIRecipe(${i})">${t('saveRecipe')}</button>
+        <span class="ai-recipe-expand">⌄</span>
+      </div>
     </div>
     <div class="ai-recipe-body">
       ${desc ? `<p class="ai-recipe-desc" style="margin-top:10px">${desc}</p>` : ''}
@@ -2647,6 +2704,87 @@ function selectAllIngredients() {
 function clearIngredients() {
   selectedIngredients.clear();
   renderRecipes();
+}
+
+// ============================================================
+// SAVED RECIPES
+// ============================================================
+function saveAIRecipe(idx) {
+  const recipe = aiRecipes[idx];
+  if (!recipe) return;
+  const alreadySaved = savedRecipes.some(r => r.name === recipe.name);
+  if (alreadySaved) { showToast(t('recipeAlreadySaved')); return; }
+  savedRecipes.unshift({ ...recipe, savedAt: new Date().toISOString() });
+  saveSavedRecipes();
+  renderRecipes();
+  showToast('⭐ ' + recipe.name);
+}
+
+function removeSavedRecipe(idx) {
+  savedRecipes.splice(idx, 1);
+  saveSavedRecipes();
+  renderRecipes();
+}
+
+function renderSavedRecipes() {
+  if (savedRecipes.length === 0) return '';
+  const cards = savedRecipes.map((r, i) => {
+    const appliance = r.appliance || 'Herd';
+    const meta = APPLIANCE_META[appliance] || APPLIANCE_META['Herd'];
+    const name = escHtml(r.name || '');
+    const time = escHtml(r.time || '');
+    const lang = db.settings.lang;
+    const diffMap = t('aiDifficulty');
+    const diffLabel = escHtml(diffMap?.[r.difficulty] || r.difficulty || '');
+    const expanded = i === 0 ? ' expanded' : '';
+    const ingredients = Array.isArray(r.ingredients) ? r.ingredients : [];
+    const steps = Array.isArray(r.steps) ? r.steps : [];
+    const ingredientsLabels = { de: 'Zutaten', en: 'Ingredients', ru: 'Ингредиенты', sq: 'Përbërësit' };
+    const stepsLabels = { de: `Zubereitung (${appliance})`, en: `Preparation (${appliance})`, ru: `Приготовление (${appliance})`, sq: `Përgatitja (${appliance})` };
+
+    const ingredientsHtml = ingredients.length ? `
+      <div class="ai-steps-title" style="margin-top:12px;color:${meta.color}">🧾 ${ingredientsLabels[lang] || 'Zutaten'}</div>
+      <ul style="margin:6px 0 0 16px;display:flex;flex-direction:column;gap:3px">
+        ${ingredients.map(ing => `<li style="font-size:14px;color:var(--text)">${escHtml(typeof ing === 'string' ? ing : ing.name || '')}</li>`).join('')}
+      </ul>` : '';
+
+    const stepsHtml = steps.length ? `
+      <div class="ai-steps-title" style="margin-top:12px;color:${meta.color}">📋 ${stepsLabels[lang] || stepsLabels.de}</div>
+      <ol style="margin:6px 0 0 16px;display:flex;flex-direction:column;gap:4px">
+        ${steps.map(s => `<li style="font-size:14px;line-height:1.5;color:var(--text)">${escHtml(s)}</li>`).join('')}
+      </ol>` : '';
+
+    return `<div class="saved-recipe-card${expanded}" id="savedcard-${i}" style="border-left-color:${meta.color}">
+      <div class="ai-recipe-header" onclick="this.closest('.saved-recipe-card').classList.toggle('expanded')">
+        <div class="ai-recipe-title-block">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <span style="font-size:22px">${meta.icon}</span>
+            <div class="ai-recipe-name">${name}</div>
+          </div>
+          <div class="ai-recipe-badges">
+            ${time ? `<span class="ai-badge ai-badge-blue">⏱ ${time}</span>` : ''}
+            ${r.portions ? `<span class="ai-badge ai-badge-blue">👥 ${escHtml(r.portions)}</span>` : ''}
+            ${diffLabel ? `<span class="ai-badge ai-badge-${r.difficulty === 'Einfach' ? 'green' : 'purple'}">${diffLabel}</span>` : ''}
+            <span class="ai-badge" style="background:${meta.bg};color:${meta.color}">${appliance}</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+          <button class="btn-save-recipe saved" title="${t('removeSaved')}" onclick="event.stopPropagation();removeSavedRecipe(${i})">⭐</button>
+          <span class="ai-recipe-expand">⌄</span>
+        </div>
+      </div>
+      <div class="ai-recipe-body">
+        ${r.description ? `<p class="ai-recipe-desc" style="margin-top:10px">${escHtml(r.description)}</p>` : ''}
+        ${ingredientsHtml}
+        ${stepsHtml}
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div class="recipe-info-card">
+    <div class="recipe-info-title">${t('savedRecipesTitle')}</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">${cards}</div>
+  </div>`;
 }
 
 // ============================================================
