@@ -1,0 +1,14 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up VorratsManager",
+        "description": "Click **Submit** – the app sets itself up automatically and appears in the sidebar."
+      }
+    },
+    "abort": {
+      "already_configured": "VorratsManager is already configured."
+    },
+    "error": {}
+  }
+}
