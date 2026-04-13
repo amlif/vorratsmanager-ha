@@ -52,6 +52,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.async_add_executor_job(_copy_www)
 
+    # --- Icon für HA-Integrationsseite registrieren ---
+    try:
+        hass.http.register_static_path(
+            "/local/vorratsmanager/icon.png",
+            str(dst_dir / "icon.png"),
+            cache_headers=True,
+        )
+    except Exception:
+        pass  # Ältere HA-Versionen ignorieren
+
     # --- Panel in der Sidebar registrieren ---
     try:
         from homeassistant.components.panel_custom import async_register_panel
