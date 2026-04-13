@@ -52,6 +52,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.async_add_executor_job(_copy_www)
 
+    # --- Migration: Daten von alter gefrierapp-Installation übernehmen ---
+    def _migrate_old_data() -> None:
+        if data_file.stat().st_size > 100:
+            return  # Schon Daten vorhanden, nichts tun
+        old_file = pathlib.Path(hass.config.path("www", "gefrierapp", "data.json"))
+        if old_file.exists() and old_file.stat().st_size > 100:
+            shutil.copy2(old_file, data_file)
+            _LOGGER.info("VorratsManager: Daten aus gefrierapp migriert (%d Bytes)", old_file.stat().st_size)
+
+    await hass.async_add_executor_job(_migrate_old_data)
+
     # --- Icon für HA-Integrationsseite registrieren ---
     try:
         hass.http.register_static_path(
