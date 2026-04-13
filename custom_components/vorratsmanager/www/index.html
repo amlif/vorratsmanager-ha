@@ -3293,10 +3293,7 @@ async function init() {
   const serverData = await loadFromServer();
   if (serverData?.items && Array.isArray(serverData.items)) {
     db.items = serverData.items;
-    if (Array.isArray(serverData.savedRecipes) && serverData.savedRecipes.length >= db.savedRecipes.length) {
-      db.savedRecipes = serverData.savedRecipes;
-      _saveFavoritesLocal();
-    }
+    if (Array.isArray(serverData.savedRecipes)) db.savedRecipes = serverData.savedRecipes;
     applySharedSettings(serverData.settings); // API-Keys etc. vom Server übernehmen
     _lastSavedTs = serverData.updated || '';
     localStorage.setItem('fridgeapp_v1', JSON.stringify(db)); // Cache aktualisieren
