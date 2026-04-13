@@ -64,7 +64,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         config={
             "_panel_custom": {
                 "name": "vorrats-manager-panel",
-                "module_url": "/local/vorratsmanager/panel.js",
+                "module_url": f"/local/vorratsmanager/panel.js?v={_get_version()}",
                 "trust_external": False,
                 "embed_iframe": False,
             }
@@ -76,9 +76,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # --- Service vorratsmanager.vorrat_save ---
     async def _vorrat_save(call: ServiceCall) -> None:
         items = call.data.get("items", [])
-        saved_recipes = call.data.get("savedRecipes", [])
         settings = call.data.get("settings", {})
         updated = call.data.get("updated", "")
+
+        # savedRecipes: wenn nicht mitgeschickt, bestehende aus data.json behalten
+        # (verhindert Datenverlust durch alte/gecachte panel.js-Versionen)
+        def _read_existing_favorites() -> list:
+            try:
+                if data_file.exists():
+                    return json.loads(data_file.read_text(encoding="utf-8")).get("savedRecipes", [])
+            except Exception:
+                pass
+            return []
+
+        if "savedRecipes" in call.data:
+            saved_recipes = call.data["savedRecipes"]
+        else:
+            saved_recipes = await hass.async_add_executor_job(_read_existing_favorites)
+
         payload = json.dumps(
             {"items": items, "savedRecipes": saved_recipes, "settings": settings, "updated": updated, "version": 1},
             ensure_ascii=False,
