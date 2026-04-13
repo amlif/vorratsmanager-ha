@@ -1,6 +1,6 @@
 # VorratsManager für Home Assistant
 
-Verwalte **Gefriertruhe, Kühlschrank und Vorratsraum** direkt in Home Assistant – mit KI-Rezeptvorschlägen, Bring!-Integration und Echtzeit-Sync zwischen allen Geräten.
+Verwalte **Gefriertruhe, Kühlschrank und Vorratsraum** direkt in Home Assistant – mit KI-Rezeptvorschlägen, Favoriten, Bring!-Integration und Echtzeit-Sync zwischen allen Geräten.
 
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange)](https://hacs.xyz)
 ![HA](https://img.shields.io/badge/Home%20Assistant-2024.1+-blue?logo=homeassistant)
@@ -14,12 +14,14 @@ Verwalte **Gefriertruhe, Kühlschrank und Vorratsraum** direkt in Home Assistant
 |---|---|
 | ❄️ Gefriertruhe · 🥬 Kühlschrank · 🏺 Vorratsraum | 3 Lagerorte mit eigenen Kategorien |
 | ⚠️ MHD-Tracking | Ablaufwarnungen (konfigurierbar) |
-| 🤖 KI-Rezepte | Thermomix · Airfryer · Backofen · Herd |
+| 🤖 KI-Rezepte | Thermomix · Airfryer · Grill · Backofen · Herd |
+| 🍳 Gerätewahl | Nur Rezepte für deine vorhandenen Geräte |
+| ⭐ Favoriten | KI-Rezepte speichern – sync auf allen Geräten |
 | 🛒 Bring!-Integration | Erledigte Einkäufe direkt in den Vorrat |
 | 🔄 Echtzeit-Sync | Alle Geräte im Haushalt synchron |
 | 🌐 4 Sprachen | Deutsch · English · Русский · Shqip |
 | 🌙 Dark Mode | |
-| 🔍 Cookidoo-Suche | DE + RU |
+| 🔍 Cookidoo-Suche | Smarte Zutatenauswahl (MHD-priorisiert) |
 | 📤 Export / Import | JSON |
 
 ---
@@ -52,6 +54,8 @@ Die App nutzt eine Fallback-Kette – du brauchst **keinen** API-Key wenn du HA 
 | **HA ai_task** | Kostenlos | Automatisch im HA-Panel – nichts nötig |
 | **Groq** | Kostenlos | Key auf [console.groq.com](https://console.groq.com) → ⚙️ Einstellungen |
 | **OpenRouter** | Kostenlos (freie Modelle) | Key auf [openrouter.ai](https://openrouter.ai) → ⚙️ Einstellungen |
+
+In ⚙️ Einstellungen kannst du außerdem festlegen, welche Küchengeräte du besitzt – die KI schlägt dann nur passende Rezepte vor (Thermomix, Airfryer, Grill, Backofen, Herd). Bereits angezeigte Rezepte werden automatisch ausgeschlossen, damit die Vorschläge abwechslungsreich bleiben.
 
 ---
 
