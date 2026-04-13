@@ -2616,7 +2616,7 @@ function renderAIRecipeCard(r, i) {
     <div class="ai-steps">
       ${steps.map((s, n) => `<div class="ai-step">
         <div class="ai-step-num" style="background:${meta.bg};color:${meta.color}">${n+1}</div>
-        <div>${escHtml(s)}</div>
+        <div>${escHtml(stepToStr(s))}</div>
       </div>`).join('')}
     </div>` : '';
 
@@ -2853,7 +2853,7 @@ Required fields per recipe:
 - difficulty: Einfach / Mittel / Fortgeschritten
 - ingredients: array of ALL ingredients with exact amounts for ${aiPortions} servings, in ${outputLang}
   Example: ["600g chicken breast","800g potatoes","2 onions","2 tbsp olive oil","salt and pepper"]
-- steps: array of VERY DETAILED steps (min 5-8 steps) in ${outputLang}.
+- steps: array of VERY DETAILED step strings (min 5-8 steps, each step must be a plain string, NOT an object) in ${outputLang}.
   Thermomix: each step with exact speed (1-10 or Turbo), temperature (Varoma/90°C/etc.) and time.
   Airfryer: preheat (temp/time), cooking time with temperature, remind to flip halfway.
   Grill: preheat grill, direct/indirect heat, exact grill times per side, resting time.
@@ -2984,7 +2984,7 @@ function renderSavedRecipes() {
       <div class="ai-steps">
         ${steps.map((s, n) => `<div class="ai-step">
           <div class="ai-step-num" style="background:${meta.bg};color:${meta.color}">${n+1}</div>
-          <div>${escHtml(s)}</div>
+          <div>${escHtml(stepToStr(s))}</div>
         </div>`).join('')}
       </div>` : '';
 
@@ -3526,6 +3526,16 @@ function escHtml(str) {
 function escAttr(str) {
   return String(str).replace(/"/g,'&quot;');
 }
+// Normalisiert KI-Schritte: String oder Objekt → String
+function stepToStr(s) {
+  if (typeof s === 'string') return s;
+  if (s && typeof s === 'object') {
+    return s.description || s.text || s.step || s.instruction || s.action || s.content
+      || Object.values(s).filter(v => typeof v === 'string' && v.length > 5).join(' – ')
+      || JSON.stringify(s);
+  }
+  return String(s ?? '');
+}
 
 // ============================================================
 // INIT
@@ -3748,7 +3758,7 @@ function printRecipe(recipe) {
     </div>
     ${recipe.description ? `<p>${escHtml(recipe.description)}</p>` : ''}
     ${ingredients.length ? `<h2>🧾 ${ingredientsLabel}</h2><ul>${ingredients.map(ing => `<li><span>${escHtml(typeof ing === 'string' ? ing : (ing.name||''))}</span></li>`).join('')}</ul>` : ''}
-    ${steps.length ? `<h2>${meta.icon} ${stepsLabel} (${appliance})</h2>${steps.map((s, n) => `<div class="step"><div class="step-n">${n+1}</div><div class="step-text">${escHtml(s)}</div></div>`).join('')}` : ''}
+    ${steps.length ? `<h2>${meta.icon} ${stepsLabel} (${appliance})</h2>${steps.map((s, n) => `<div class="step"><div class="step-n">${n+1}</div><div class="step-text">${escHtml(stepToStr(s))}</div></div>`).join('')}` : ''}
     <button class="print-btn" onclick="window.print()">🖨️ ${t('printRecipe') || 'Drucken'}</button>
   </body></html>`);
   w.document.close();
