@@ -1385,6 +1385,14 @@
             </div>
           </div>
         </div>
+        <div class="settings-item" style="margin-top:8px">
+          <span class="settings-item-icon">🍳</span>
+          <div class="settings-item-body">
+            <div class="settings-item-label" data-key="settingsAppliances">Meine Küchengeräte</div>
+            <div style="font-size:11px;color:var(--text-muted);margin:4px 0 8px" data-key="settingsAppliancesHint">KI schlägt nur Rezepte für gewählte Geräte vor</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap" id="appliance-toggles"></div>
+          </div>
+        </div>
       </div>
 
       <div class="settings-section">
@@ -1523,6 +1531,8 @@ const T = {
     recipeAlreadySaved: 'Bereits gespeichert',
     noSavedRecipes: 'Noch keine Rezepte gespeichert.',
     removeSaved: '✕ Entfernen',
+    settingsAppliances: 'Meine Küchengeräte',
+    settingsAppliancesHint: 'KI schlägt nur Rezepte für gewählte Geräte vor',
     aiGenerate: '🤖 KI-Rezepte generieren',
     aiGenerating: '⏳ KI generiert Rezepte…',
     aiError: 'Fehler beim Generieren.',
@@ -1605,6 +1615,8 @@ const T = {
     recipeAlreadySaved: 'Уже сохранено',
     noSavedRecipes: 'Нет сохранённых рецептов.',
     removeSaved: '✕ Удалить',
+    settingsAppliances: 'Мои кухонные приборы',
+    settingsAppliancesHint: 'ИИ предлагает рецепты только для выбранных приборов',
     aiGenerate: '🤖 Сгенерировать рецепты',
     aiGenerating: '⏳ ИИ генерирует рецепты…',
     aiError: 'Ошибка генерации.',
@@ -1687,6 +1699,8 @@ const T = {
     recipeAlreadySaved: 'Already saved',
     noSavedRecipes: 'No saved recipes yet.',
     removeSaved: '✕ Remove',
+    settingsAppliances: 'My Kitchen Appliances',
+    settingsAppliancesHint: 'AI only suggests recipes for selected appliances',
     aiGenerate: '🤖 Generate AI recipes',
     aiGenerating: '⏳ AI is generating recipes…',
     aiError: 'Error generating recipes.',
@@ -1769,6 +1783,8 @@ const T = {
     recipeAlreadySaved: 'Tashmë e ruajtur',
     noSavedRecipes: 'Ende nuk keni receta të ruajtura.',
     removeSaved: '✕ Hiq',
+    settingsAppliances: 'Pajisjet e mia të kuzhinës',
+    settingsAppliancesHint: 'AI sugjeron receta vetëm për pajisjet e zgjedhura',
     aiGenerate: '🤖 Gjenero receta me AI',
     aiGenerating: '⏳ AI po gjeneron receta…',
     aiError: 'Gabim gjatë gjenerimit.',
@@ -1895,6 +1911,7 @@ let db = {
     openRouterKey: '',
     groqApiKey: '',
     darkMode: false,
+    appliances: ['Thermomix','Airfryer','Grill','Backofen','Herd'],
   }
 };
 
@@ -1905,6 +1922,7 @@ let aiRecipes = [];
 let aiLoading = false;
 let aiError = '';
 let aiPortions = 4;
+let recentRecipeNames = []; // Verhindert Wiederholungen, gerätlokal
 
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -1917,7 +1935,12 @@ function loadDb() {
       const parsed = JSON.parse(saved);
       db = parsed;
       if (!Array.isArray(db.savedRecipes)) db.savedRecipes = [];
+      if (!Array.isArray(db.settings.appliances)) db.settings.appliances = ['Thermomix','Airfryer','Grill','Backofen','Herd'];
     }
+  } catch(e) {}
+  try {
+    const rr = localStorage.getItem('vm_recent_recipes');
+    if (rr) recentRecipeNames = JSON.parse(rr);
   } catch(e) {}
 }
 
@@ -1933,7 +1956,7 @@ let _lastSavedTs = '';
 let _inHaPanel = false; // true wenn in panel.js iframe
 
 // Einstellungen die server-seitig geteilt werden (alle Geräte)
-const SHARED_SETTINGS = ['openRouterKey','groqApiKey','notifyDays','bringToken','bringListUuid','bringListName'];
+const SHARED_SETTINGS = ['openRouterKey','groqApiKey','notifyDays','bringToken','bringListUuid','bringListName','appliances'];
 
 function getSharedSettings() {
   const s = {};
@@ -2393,6 +2416,7 @@ function renderRecipes() {
 const APPLIANCE_META = {
   'Thermomix': { icon: '🌀', color: '#7C3AED', bg: '#EDE9FE', badgeClass: 'ai-badge-purple' },
   'Airfryer':  { icon: '💨', color: '#0369A1', bg: '#E0F2FE', badgeClass: 'ai-badge-cyan' },
+  'Grill':     { icon: '🥩', color: '#DC2626', bg: '#FEF2F2', badgeClass: 'ai-badge-red' },
   'Backofen':  { icon: '🔥', color: '#B45309', bg: '#FEF3C7', badgeClass: 'ai-badge-amber' },
   'Herd':      { icon: '🍳', color: '#166534', bg: '#DCFCE7', badgeClass: 'ai-badge-green' },
 };
@@ -2632,27 +2656,42 @@ async function generateAIRecipes() {
   const langNames = { de: 'German', en: 'English', ru: 'Russian', sq: 'Albanian' };
   const outputLang = langNames[lang] || 'German';
 
-  const systemPrompt = `You are an expert cook with hands-on knowledge of Thermomix TM6, Airfryer, oven and stovetop. Reply ONLY with a JSON object — no markdown, no extra text.`;
+  // Geräteauswahl aus Einstellungen
+  const activeAppliances = (db.settings.appliances || ['Thermomix','Airfryer','Grill','Backofen','Herd'])
+    .filter(a => APPLIANCE_META[a]);
+  const applianceList = activeAppliances.join(' / ');
+  // Verteilung: je Gerät min. 1 Rezept, Rest nach verfügbaren
+  const recipeCount = Math.min(activeAppliances.length + 1, 6);
+  const distribution = activeAppliances.map(a => `1x ${a}`).join(', ');
 
-  const userPrompt = `Available ingredients: ${ingredientList}. Servings: ${aiPortions}.
+  // Wiederholungsschutz
+  const exclusion = recentRecipeNames.length > 0
+    ? `\nIMPORTANT: Do NOT create any of these already-shown recipes (be creative, choose different dishes): ${recentRecipeNames.slice(-20).join(', ')}.`
+    : '';
 
-Create 5 complete, standalone recipes: 1x Thermomix, 1x Airfryer, 1x Oven, 1x Stovetop, 1x any appliance.
+  const systemPrompt = `You are an expert cook. Reply ONLY with a JSON object — no markdown, no extra text.`;
+
+  const userPrompt = `Available ingredients: ${ingredientList}. Servings: ${aiPortions}.${exclusion}
+
+Create ${recipeCount} complete, varied recipes: ${distribution}${activeAppliances.length < recipeCount ? ', 1x any of the above' : ''}.
+Use DIFFERENT cooking styles, cuisines and techniques each time. Be creative and avoid repetition.
 
 Reply with JSON: {"recipes":[...]}
 Required fields per recipe:
-- name: recipe name in ${outputLang} (creative and appetizing)
+- name: recipe name in ${outputLang} (creative and appetizing, avoid generic names)
 - description: 2-3 sentence description in ${outputLang} (appetizing and informative)
-- appliance: exactly one of: Thermomix / Airfryer / Backofen / Herd
+- appliance: exactly one of: ${applianceList}
 - time: total time including prep, e.g. "45 min"
 - portions: ${aiPortions}
 - difficulty: Einfach / Mittel / Fortgeschritten
 - ingredients: array of ALL ingredients with exact amounts for ${aiPortions} servings, in ${outputLang}
   Example: ["600g chicken breast","800g potatoes","2 onions","2 tbsp olive oil","salt and pepper"]
 - steps: array of VERY DETAILED steps (min 5-8 steps) in ${outputLang}.
-  Thermomix: each step with exact speed (1-10 or Turbo), temperature (Varoma/90°C/etc.) and time. E.g. "Add onions, 5 sec | Speed 5. Scrape down."
+  Thermomix: each step with exact speed (1-10 or Turbo), temperature (Varoma/90°C/etc.) and time.
   Airfryer: preheat (temp/time), cooking time with temperature, remind to flip halfway.
-  Oven (Backofen): exact preheat temperature, fan or top/bottom heat, exact duration.
-  Stovetop (Herd): heat level (low/medium/high), cooking time, visual doneness check.
+  Grill: preheat grill, direct/indirect heat, exact grill times per side, resting time.
+  Backofen: exact preheat temperature, fan or top/bottom heat, exact duration.
+  Herd: heat level (low/medium/high), cooking time, visual doneness check.
 - cookidooDe: 2-3 words for Cookidoo search in German
 - usedIngredients: array of used ingredients from the input list`;
 
@@ -2661,6 +2700,10 @@ Required fields per recipe:
     const parsed = parseAIResponse(raw);
     if (!Array.isArray(parsed) || parsed.length === 0) throw new Error('Leere Antwort');
     aiRecipes = parsed;
+    // Namen merken um Wiederholungen zu vermeiden
+    parsed.forEach(r => { if (r.name) recentRecipeNames.push(r.name); });
+    if (recentRecipeNames.length > 30) recentRecipeNames = recentRecipeNames.slice(-30);
+    localStorage.setItem('vm_recent_recipes', JSON.stringify(recentRecipeNames));
     aiLoading = false;
     aiError = '';
   } catch(e) {
@@ -3161,8 +3204,34 @@ function openSettings() {
   document.getElementById('notify-days').value = db.settings.notifyDays || 2;
   document.getElementById('openrouter-key').value = db.settings.openRouterKey || '';
   document.getElementById('groq-key').value = db.settings.groqApiKey || '';
+
+  // Geräte-Toggles rendern
+  const selected = db.settings.appliances || ['Thermomix','Airfryer','Grill','Backofen','Herd'];
+  const allAppliances = Object.keys(APPLIANCE_META);
+  const container = document.getElementById('appliance-toggles');
+  container.innerHTML = allAppliances.map(a => {
+    const meta = APPLIANCE_META[a];
+    const on = selected.includes(a);
+    return `<button onclick="toggleAppliance('${a}',this)" style="
+      display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;border:2px solid ${on ? meta.color : 'var(--border)'};
+      background:${on ? meta.bg : 'transparent'};color:${on ? meta.color : 'var(--text-muted)'};
+      font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s" data-appliance="${a}" data-on="${on}">
+      ${meta.icon} ${a}
+    </button>`;
+  }).join('');
+
   applyDarkMode();
   document.getElementById('settings-overlay').classList.add('open');
+}
+
+function toggleAppliance(name, btn) {
+  const on = btn.dataset.on === 'true';
+  const meta = APPLIANCE_META[name];
+  const nowOn = !on;
+  btn.dataset.on = nowOn;
+  btn.style.borderColor = nowOn ? meta.color : 'var(--border)';
+  btn.style.background = nowOn ? meta.bg : 'transparent';
+  btn.style.color = nowOn ? meta.color : 'var(--text-muted)';
 }
 
 function saveSettings() {
@@ -3171,6 +3240,10 @@ function saveSettings() {
   db.settings.notifyDays = parseInt(document.getElementById('notify-days').value) || 2;
   db.settings.openRouterKey = document.getElementById('openrouter-key').value.trim();
   db.settings.groqApiKey = document.getElementById('groq-key').value.trim();
+  // Geräteauswahl speichern
+  const activeBtns = document.querySelectorAll('#appliance-toggles button[data-on="true"]');
+  db.settings.appliances = [...activeBtns].map(b => b.dataset.appliance);
+  if (db.settings.appliances.length === 0) db.settings.appliances = ['Herd']; // mind. eines
   saveDb(); // localStorage + Server-Push (damit Keys auf alle Geräte kommen)
   closeAllModals();
   renderAll();
