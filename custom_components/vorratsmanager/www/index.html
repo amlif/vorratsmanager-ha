@@ -1915,11 +1915,25 @@ function loadDb() {
       if (!Array.isArray(db.savedRecipes)) db.savedRecipes = [];
     }
   } catch(e) {}
+  // Dedizierter Favoriten-Key: sofort geschrieben, überlebt Race-Condition bei F5
+  try {
+    const fav = localStorage.getItem('vorratsmanager_favorites');
+    if (fav) {
+      const parsed = JSON.parse(fav);
+      if (Array.isArray(parsed) && parsed.length >= db.savedRecipes.length) {
+        db.savedRecipes = parsed;
+      }
+    }
+  } catch(e) {}
 }
 
 function saveDb() {
   localStorage.setItem('fridgeapp_v1', JSON.stringify(db));
   saveToServer(); // Echtzeit-Sync an alle Geräte
+}
+
+function _saveFavoritesLocal() {
+  localStorage.setItem('vorratsmanager_favorites', JSON.stringify(db.savedRecipes));
 }
 
 // ============================================================
@@ -1995,7 +2009,10 @@ window.addEventListener('message', async (e) => {
     const serverData = await loadFromServer();
     if (serverData?.items && Array.isArray(serverData.items)) {
       db.items = serverData.items;
-      if (Array.isArray(serverData.savedRecipes)) db.savedRecipes = serverData.savedRecipes;
+      if (Array.isArray(serverData.savedRecipes) && serverData.savedRecipes.length >= db.savedRecipes.length) {
+        db.savedRecipes = serverData.savedRecipes;
+        _saveFavoritesLocal();
+      }
       applySharedSettings(serverData.settings);
       _lastSavedTs = serverData.updated || '';
       localStorage.setItem('fridgeapp_v1', JSON.stringify(db));
@@ -2720,6 +2737,7 @@ function saveAIRecipe(idx) {
   const alreadySaved = db.savedRecipes.some(r => r.name === recipe.name);
   if (alreadySaved) { showToast(t('recipeAlreadySaved')); return; }
   db.savedRecipes.unshift({ ...recipe, savedAt: new Date().toISOString() });
+  _saveFavoritesLocal(); // sofort sichern – unabhängig vom Server-Sync
   saveDb();
   renderRecipes();
   showToast('⭐ ' + recipe.name);
@@ -2727,6 +2745,7 @@ function saveAIRecipe(idx) {
 
 function removeSavedRecipe(idx) {
   db.savedRecipes.splice(idx, 1);
+  _saveFavoritesLocal(); // sofort sichern
   saveDb();
   renderRecipes();
 }
@@ -3288,7 +3307,10 @@ async function init() {
   const serverData = await loadFromServer();
   if (serverData?.items && Array.isArray(serverData.items)) {
     db.items = serverData.items;
-    if (Array.isArray(serverData.savedRecipes)) db.savedRecipes = serverData.savedRecipes;
+    if (Array.isArray(serverData.savedRecipes) && serverData.savedRecipes.length >= db.savedRecipes.length) {
+      db.savedRecipes = serverData.savedRecipes;
+      _saveFavoritesLocal();
+    }
     applySharedSettings(serverData.settings); // API-Keys etc. vom Server übernehmen
     _lastSavedTs = serverData.updated || '';
     localStorage.setItem('fridgeapp_v1', JSON.stringify(db)); // Cache aktualisieren
