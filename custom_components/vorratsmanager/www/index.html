@@ -1876,6 +1876,7 @@ const LOCATIONS = [
 // ============================================================
 let db = {
   items: [],
+  savedRecipes: [],
   settings: {
     lang: 'de',
     haUrl: (window.location.origin !== 'null' && window.location.origin !== 'file://' ? window.location.origin : 'http://192.168.1.11:8123'),
@@ -1898,7 +1899,6 @@ let aiRecipes = [];
 let aiLoading = false;
 let aiError = '';
 let aiPortions = 4;
-let savedRecipes = []; // Device-local, not synced to server
 
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -1907,21 +1907,17 @@ function generateId() {
 function loadDb() {
   try {
     const saved = localStorage.getItem('fridgeapp_v1');
-    if (saved) db = JSON.parse(saved);
-  } catch(e) {}
-  try {
-    const sr = localStorage.getItem('vorratsmanager_saved_recipes');
-    if (sr) savedRecipes = JSON.parse(sr);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      db = parsed;
+      if (!Array.isArray(db.savedRecipes)) db.savedRecipes = [];
+    }
   } catch(e) {}
 }
 
 function saveDb() {
   localStorage.setItem('fridgeapp_v1', JSON.stringify(db));
   saveToServer(); // Echtzeit-Sync an alle Geräte
-}
-
-function saveSavedRecipes() {
-  localStorage.setItem('vorratsmanager_saved_recipes', JSON.stringify(savedRecipes));
 }
 
 // ============================================================
@@ -1961,6 +1957,7 @@ function saveToServer() {
     window.parent.postMessage({
       type: 'vorrat-save',
       items: db.items,
+      savedRecipes: db.savedRecipes,
       settings: getSharedSettings(),
       updated
     }, '*');
@@ -1969,7 +1966,7 @@ function saveToServer() {
     fetch(`${db.settings.haUrl}/api/services/vorratsmanager/vorrat_save`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: db.items, settings: getSharedSettings(), updated })
+      body: JSON.stringify({ items: db.items, savedRecipes: db.savedRecipes, settings: getSharedSettings(), updated })
     }).catch(() => {});
   }
 }
@@ -1996,6 +1993,7 @@ window.addEventListener('message', async (e) => {
     const serverData = await loadFromServer();
     if (serverData?.items && Array.isArray(serverData.items)) {
       db.items = serverData.items;
+      if (Array.isArray(serverData.savedRecipes)) db.savedRecipes = serverData.savedRecipes;
       applySharedSettings(serverData.settings);
       _lastSavedTs = serverData.updated || '';
       localStorage.setItem('fridgeapp_v1', JSON.stringify(db));
@@ -2460,7 +2458,7 @@ function renderAIRecipeCard(r, i) {
         </div>
       </div>
       <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
-        <button class="btn-save-recipe${savedRecipes.some(s => s.name === r.name) ? ' saved' : ''}" title="${t('saveRecipe')}" onclick="event.stopPropagation();saveAIRecipe(${i})">${t('saveRecipe')}</button>
+        <button class="btn-save-recipe${db.savedRecipes.some(s => s.name === r.name) ? ' saved' : ''}" title="${t('saveRecipe')}" onclick="event.stopPropagation();saveAIRecipe(${i})">${t('saveRecipe')}</button>
         <span class="ai-recipe-expand">⌄</span>
       </div>
     </div>
@@ -2712,23 +2710,23 @@ function clearIngredients() {
 function saveAIRecipe(idx) {
   const recipe = aiRecipes[idx];
   if (!recipe) return;
-  const alreadySaved = savedRecipes.some(r => r.name === recipe.name);
+  const alreadySaved = db.savedRecipes.some(r => r.name === recipe.name);
   if (alreadySaved) { showToast(t('recipeAlreadySaved')); return; }
-  savedRecipes.unshift({ ...recipe, savedAt: new Date().toISOString() });
-  saveSavedRecipes();
+  db.savedRecipes.unshift({ ...recipe, savedAt: new Date().toISOString() });
+  saveDb();
   renderRecipes();
   showToast('⭐ ' + recipe.name);
 }
 
 function removeSavedRecipe(idx) {
-  savedRecipes.splice(idx, 1);
-  saveSavedRecipes();
+  db.savedRecipes.splice(idx, 1);
+  saveDb();
   renderRecipes();
 }
 
 function renderSavedRecipes() {
-  if (savedRecipes.length === 0) return '';
-  const cards = savedRecipes.map((r, i) => {
+  if (db.savedRecipes.length === 0) return '';
+  const cards = db.savedRecipes.map((r, i) => {
     const appliance = r.appliance || 'Herd';
     const meta = APPLIANCE_META[appliance] || APPLIANCE_META['Herd'];
     const name = escHtml(r.name || '');
@@ -3269,6 +3267,7 @@ async function init() {
   const serverData = await loadFromServer();
   if (serverData?.items && Array.isArray(serverData.items)) {
     db.items = serverData.items;
+    if (Array.isArray(serverData.savedRecipes)) db.savedRecipes = serverData.savedRecipes;
     applySharedSettings(serverData.settings); // API-Keys etc. vom Server übernehmen
     _lastSavedTs = serverData.updated || '';
     localStorage.setItem('fridgeapp_v1', JSON.stringify(db)); // Cache aktualisieren

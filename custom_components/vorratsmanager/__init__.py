@@ -76,10 +76,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # --- Service vorratsmanager.vorrat_save ---
     async def _vorrat_save(call: ServiceCall) -> None:
         items = call.data.get("items", [])
+        saved_recipes = call.data.get("savedRecipes", [])
         settings = call.data.get("settings", {})
         updated = call.data.get("updated", "")
         payload = json.dumps(
-            {"items": items, "settings": settings, "updated": updated, "version": 1},
+            {"items": items, "savedRecipes": saved_recipes, "settings": settings, "updated": updated, "version": 1},
             ensure_ascii=False,
         )
         try:

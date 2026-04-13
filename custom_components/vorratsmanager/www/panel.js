@@ -43,6 +43,7 @@ class VorratsManagerPanel extends HTMLElement {
         try {
           await this._hass.callService('vorratsmanager', 'vorrat_save', {
             items: e.data.items,
+            savedRecipes: e.data.savedRecipes || [],
             settings: e.data.settings || {},
             updated: e.data.updated
           });
