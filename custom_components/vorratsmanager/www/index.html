@@ -929,6 +929,8 @@
 
     .ai-recipe-expand { font-size: 18px; color: var(--text-muted); flex-shrink: 0; transition: transform 0.2s; }
     .ai-recipe-card.expanded .ai-recipe-expand { transform: rotate(180deg); }
+    .saved-recipe-card.expanded .ai-recipe-expand { transform: rotate(180deg); }
+    .saved-recipe-card.expanded .ai-recipe-body { display: block; }
 
     .ai-recipe-body {
       display: none;
@@ -2497,6 +2499,11 @@ function toggleAICard(i) {
   if (card) card.classList.toggle('expanded');
 }
 
+function toggleSavedCard(i) {
+  const card = document.getElementById(`savedcard-${i}`);
+  if (card) card.classList.toggle('expanded');
+}
+
 function parseAIResponse(raw) {
   const cleaned = raw.replace(/```[a-z]*\s*/gi,'').replace(/```\s*/g,'').trim();
   // Handle {recipes:[...]} wrapper from Groq json_object mode
@@ -2734,31 +2741,40 @@ function renderSavedRecipes() {
   const cards = db.savedRecipes.map((r, i) => {
     const appliance = r.appliance || 'Herd';
     const meta = APPLIANCE_META[appliance] || APPLIANCE_META['Herd'];
-    const name = escHtml(r.name || '');
-    const time = escHtml(r.time || '');
     const lang = db.settings.lang;
     const diffMap = t('aiDifficulty');
-    const diffLabel = escHtml(diffMap?.[r.difficulty] || r.difficulty || '');
+    const diff = r.difficulty || '';
+    const diffLabel = escHtml(diffMap?.[diff] || diff);
+    const name = escHtml(r.name || '');
+    const time = escHtml(r.time || '');
+    const desc = escHtml(r.description || '');
     const expanded = i === 0 ? ' expanded' : '';
     const ingredients = Array.isArray(r.ingredients) ? r.ingredients : [];
     const steps = Array.isArray(r.steps) ? r.steps : [];
+
     const ingredientsLabels = { de: 'Zutaten', en: 'Ingredients', ru: 'Ингредиенты', sq: 'Përbërësit' };
     const stepsLabels = { de: `Zubereitung (${appliance})`, en: `Preparation (${appliance})`, ru: `Приготовление (${appliance})`, sq: `Përgatitja (${appliance})` };
 
     const ingredientsHtml = ingredients.length ? `
       <div class="ai-steps-title" style="margin-top:12px;color:${meta.color}">🧾 ${ingredientsLabels[lang] || 'Zutaten'}</div>
-      <ul style="margin:6px 0 0 16px;display:flex;flex-direction:column;gap:3px">
-        ${ingredients.map(ing => `<li style="font-size:14px;color:var(--text)">${escHtml(typeof ing === 'string' ? ing : ing.name || '')}</li>`).join('')}
+      <ul style="margin:6px 0 0 4px;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px">
+        ${ingredients.map(ing => `<li style="font-size:16px;line-height:1.7;display:flex;gap:10px;align-items:baseline">
+          <span style="color:${meta.color};font-size:11px;flex-shrink:0">●</span>
+          <span>${escHtml(typeof ing === 'string' ? ing : (ing.name || ''))}</span>
+        </li>`).join('')}
       </ul>` : '';
 
     const stepsHtml = steps.length ? `
-      <div class="ai-steps-title" style="margin-top:12px;color:${meta.color}">📋 ${stepsLabels[lang] || stepsLabels.de}</div>
-      <ol style="margin:6px 0 0 16px;display:flex;flex-direction:column;gap:4px">
-        ${steps.map(s => `<li style="font-size:14px;line-height:1.5;color:var(--text)">${escHtml(s)}</li>`).join('')}
-      </ol>` : '';
+      <div class="ai-steps-title" style="margin-top:14px;color:${meta.color}">${meta.icon} ${stepsLabels[lang] || stepsLabels.de}</div>
+      <div class="ai-steps">
+        ${steps.map((s, n) => `<div class="ai-step">
+          <div class="ai-step-num" style="background:${meta.bg};color:${meta.color}">${n+1}</div>
+          <div>${escHtml(s)}</div>
+        </div>`).join('')}
+      </div>` : '';
 
     return `<div class="saved-recipe-card${expanded}" id="savedcard-${i}" style="border-left-color:${meta.color}">
-      <div class="ai-recipe-header" onclick="this.closest('.saved-recipe-card').classList.toggle('expanded')">
+      <div class="ai-recipe-header" onclick="toggleSavedCard(${i})">
         <div class="ai-recipe-title-block">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
             <span style="font-size:22px">${meta.icon}</span>
@@ -2766,8 +2782,8 @@ function renderSavedRecipes() {
           </div>
           <div class="ai-recipe-badges">
             ${time ? `<span class="ai-badge ai-badge-blue">⏱ ${time}</span>` : ''}
-            ${r.portions ? `<span class="ai-badge ai-badge-blue">👥 ${escHtml(r.portions)}</span>` : ''}
-            ${diffLabel ? `<span class="ai-badge ai-badge-${r.difficulty === 'Einfach' ? 'green' : 'purple'}">${diffLabel}</span>` : ''}
+            ${r.portions ? `<span class="ai-badge ai-badge-blue">👥 ${escHtml(String(r.portions))}</span>` : ''}
+            ${diffLabel ? `<span class="ai-badge ai-badge-${diff === 'Einfach' ? 'green' : 'purple'}">${diffLabel}</span>` : ''}
             <span class="ai-badge" style="background:${meta.bg};color:${meta.color}">${appliance}</span>
           </div>
         </div>
@@ -2777,7 +2793,7 @@ function renderSavedRecipes() {
         </div>
       </div>
       <div class="ai-recipe-body">
-        ${r.description ? `<p class="ai-recipe-desc" style="margin-top:10px">${escHtml(r.description)}</p>` : ''}
+        ${desc ? `<p class="ai-recipe-desc" style="margin-top:10px">${desc}</p>` : ''}
         ${ingredientsHtml}
         ${stepsHtml}
       </div>
