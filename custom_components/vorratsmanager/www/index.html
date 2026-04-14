@@ -2095,6 +2095,7 @@ function loadDb() {
       if (!Array.isArray(db.savedRecipes)) db.savedRecipes = [];
       if (!Array.isArray(db.settings.appliances)) db.settings.appliances = ['Thermomix','Airfryer','Grill','Backofen','Herd'];
       if (!Array.isArray(db.settings.dietFilter)) db.settings.dietFilter = [];
+      if (!db.settings.lang || !['de','en','ru','sq'].includes(db.settings.lang)) db.settings.lang = 'de';
     }
   } catch(e) {}
   try {
