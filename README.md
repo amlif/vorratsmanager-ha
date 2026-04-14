@@ -13,11 +13,16 @@ Verwalte **Gefriertruhe, Kühlschrank und Vorratsraum** direkt in Home Assistant
 | | |
 |---|---|
 | ❄️ Gefriertruhe · 🥬 Kühlschrank · 🏺 Vorratsraum | 3 Lagerorte mit eigenen Kategorien |
-| ⚠️ MHD-Tracking | Ablaufwarnungen (konfigurierbar) |
+| ⚠️ MHD-Tracking | Ablaufwarnungen (konfigurierbar) + Telegram-Benachrichtigungen |
 | 🤖 KI-Rezepte | Thermomix · Airfryer · Grill · Backofen · Herd |
 | 🍳 Gerätewahl | Nur Rezepte für deine vorhandenen Geräte |
+| 🥗 Diät-Filter | KI berücksichtigt deine Ernährungspräferenzen |
+| 👥 Portionsauswahl | Rezeptmenge für 1–8 Personen anpassen |
 | ⭐ Favoriten | KI-Rezepte speichern – sync auf allen Geräten |
+| 🖨️ Rezept drucken | Druckansicht für gespeicherte Rezepte |
 | 🛒 Bring!-Integration | Erledigte Einkäufe direkt in den Vorrat |
+| 📷 Barcode-Scanner | Produkt scannen → automatisch befüllen (Open Food Facts) |
+| 📊 Statistiken | Übersicht über Lagermengen und Ablaufdaten |
 | 🔄 Echtzeit-Sync | Alle Geräte im Haushalt synchron |
 | 🌐 4 Sprachen | Deutsch · English · Русский · Shqip |
 | 🌙 Dark Mode | |
@@ -55,7 +60,11 @@ Die App nutzt eine Fallback-Kette – du brauchst **keinen** API-Key wenn du HA 
 | **Groq** | Kostenlos | Key auf [console.groq.com](https://console.groq.com) → ⚙️ Einstellungen |
 | **OpenRouter** | Kostenlos (freie Modelle) | Key auf [openrouter.ai](https://openrouter.ai) → ⚙️ Einstellungen |
 
-In ⚙️ Einstellungen kannst du außerdem festlegen, welche Küchengeräte du besitzt – die KI schlägt dann nur passende Rezepte vor (Thermomix, Airfryer, Grill, Backofen, Herd). Bereits angezeigte Rezepte werden automatisch ausgeschlossen, damit die Vorschläge abwechslungsreich bleiben.
+In ⚙️ Einstellungen kannst du festlegen:
+- **Küchengeräte** – die KI schlägt nur passende Rezepte vor (Thermomix, Airfryer, Grill, Backofen, Herd)
+- **Diät-Filter** – z.B. vegetarisch, vegan, glutenfrei – die KI berücksichtigt das automatisch
+
+Die Portionsanzahl lässt sich direkt im Rezept-Tab anpassen (1–8 Personen). Bereits angezeigte Rezepte werden automatisch ausgeschlossen, damit die Vorschläge abwechslungsreich bleiben.
 
 ---
 
