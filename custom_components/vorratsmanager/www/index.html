@@ -1429,25 +1429,7 @@
       <button class="icon-btn" onclick="closeAllModals()">✕</button>
     </div>
     <div class="modal-body">
-      <div class="settings-section">
-        <div class="settings-section-title" data-key="settingsHa">Home Assistant</div>
-        <div class="settings-row">
-          <div class="settings-item">
-            <span class="settings-item-icon">🌐</span>
-            <div class="settings-item-body">
-              <div class="settings-item-label">URL</div>
-              <input class="form-input" id="ha-url" type="text" placeholder="http://192.168.1.11:8123" style="margin-top:6px">
-            </div>
-          </div>
-          <div class="settings-item">
-            <span class="settings-item-icon">🔑</span>
-            <div class="settings-item-body">
-              <div class="settings-item-label">Long-Lived Token <span style="font-size:11px;color:var(--safe)">(Sync + Bring!)</span></div>
-              <input class="form-input" id="ha-token" type="password" placeholder="eyJ…" style="margin-top:6px">
-            </div>
-          </div>
-        </div>
-      </div>
+
 
       <div class="settings-section">
         <div class="settings-section-title">🤖 KI-Rezepte</div>
@@ -2058,8 +2040,6 @@ let db = {
   savedRecipes: [],
   settings: {
     lang: 'de',
-    haUrl: (window.location.origin !== 'null' && window.location.origin !== 'file://' ? window.location.origin : 'http://192.168.1.11:8123'),
-    haToken: '',
     notifyDays: 2,
     lastNotifyDate: '',
     filterFreezer: 'all',
@@ -2240,19 +2220,24 @@ function today() {
 // ============================================================
 // HA API
 // ============================================================
+function panelCall(domain, service, data = {}, returnResponse = false) {
+  return new Promise(resolve => {
+    if (!_inHaPanel) { resolve(null); return; }
+    const reqId = Math.random().toString(36).slice(2);
+    const h = e => {
+      if (e.data?.type === 'vorrat-ha-result' && e.data.reqId === reqId) {
+        window.removeEventListener('message', h);
+        resolve(e.data.error ? null : e.data.result);
+      }
+    };
+    window.addEventListener('message', h);
+    window.parent.postMessage({ type: 'vorrat-ha-call', reqId, domain, service, data, returnResponse }, '*');
+  });
+}
+
 async function haCallService(domain, service, data = {}) {
-  if (!db.settings.haUrl || !getToken()) return false;
-  try {
-    const r = await fetch(`${db.settings.haUrl}/api/services/${domain}/${service}`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${getToken()}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(data)
-    });
-    return r.ok;
-  } catch(e) { return false; }
+  const result = await panelCall(domain, service, data, false);
+  return result !== null;
 }
 
 async function checkExpiryAndNotify() {
@@ -3195,7 +3180,7 @@ function openTakenModal(id) {
   document.getElementById('taken-qty-display').textContent = takenAmount;
 
   // Bring checkbox: show only if token set
-  document.getElementById('bring-toggle-wrap').style.display = db.settings.haToken ? '' : 'none';
+  document.getElementById('bring-toggle-wrap').style.display = _inHaPanel ? '' : 'none';
   document.getElementById('bring-checkbox').checked = true;
 
   document.getElementById('taken-overlay').classList.add('open');
@@ -3219,7 +3204,7 @@ function adjustTaken(delta) {
 async function confirmTaken() {
   const item = db.items.find(i => i.id === takenItemId);
   if (!item) return;
-  const addBring = document.getElementById('bring-checkbox').checked && db.settings.haToken;
+  const addBring = document.getElementById('bring-checkbox').checked && _inHaPanel;
   if (addBring) await addToBring(takenItemId);
   item.qty = Math.max(0, Math.round((item.qty - takenAmount) * 10) / 10);
   if (item.qty <= 0) db.items = db.items.filter(i => i.id !== takenItemId);
@@ -3232,7 +3217,7 @@ async function confirmTaken() {
 
 async function addToBring(id) {
   const item = db.items.find(i => i.id === id);
-  if (!item || !db.settings.haToken) return;
+  if (!item || !_inHaPanel) return;
   try {
     await haCallService('todo', 'add_item', { entity_id: 'todo.einkauf', item: item.name });
     showToast('🛒 Bring! ✓');
@@ -3264,21 +3249,15 @@ function renderBringImportModal(lang, locOptions) {
 
 async function syncBring() {
   const lang = db.settings.lang;
-  if (!getToken()) {
-    showToast(lang === 'ru' ? 'Токен не задан' : lang === 'sq' ? 'Token nuk është vendosur' : 'Kein HA Token');
+  if (!_inHaPanel) {
+    showToast(Nicht im HA Panel);
     return;
   }
   showToast('⏳ Lade Bring!…');
   try {
-    const resp = await fetch(
-      `${db.settings.haUrl}/api/services/todo/get_items?return_response`,
-      { method: 'POST',
-        headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entity_id: 'todo.einkauf', status: 'completed' }) }
-    );
-    if (!resp.ok) throw new Error(resp.status);
-    const data = await resp.json();
-    const raw = data?.service_response?.['todo.einkauf']?.items || [];
+    const result = await panelCall('todo', 'get_items', { entity_id: 'todo.einkauf', status: 'completed' }, true);
+    if (!result) throw new Error('No response');
+    const raw = result?.response?.['todo.einkauf']?.items || [];
     const items = raw.filter(i => i.status === 'completed');
 
     if (items.length === 0) {
@@ -3328,7 +3307,7 @@ async function confirmBringImport() {
   showToast(t('bringImportDone', added));
 
   // Mark imported items as "needsAction" again in Bring! so they're cleared from completed
-  if (db.settings.haToken && bringImportItems.length > 0) {
+  if (_inHaPanel && bringImportItems.length > 0) {
     try {
       for (const it of bringImportItems) {
         await haCallService('todo', 'update_item', {
@@ -3374,8 +3353,6 @@ const DIET_OPTIONS = [
 ];
 
 function openSettings() {
-  document.getElementById('ha-url').value = db.settings.haUrl || '';
-  document.getElementById('ha-token').value = db.settings.haToken || '';
   document.getElementById('notify-days').value = db.settings.notifyDays || 2;
   document.getElementById('openrouter-key').value = db.settings.openRouterKey || '';
   document.getElementById('groq-key').value = db.settings.groqApiKey || '';
@@ -3433,9 +3410,7 @@ function toggleDiet(id, btn) {
 }
 
 function saveSettings() {
-  db.settings.haUrl = document.getElementById('ha-url').value.trim().replace(/\/$/, '');
-  db.settings.haToken = document.getElementById('ha-token').value.trim();
-  db.settings.notifyDays = parseInt(document.getElementById('notify-days').value) || 2;
+    db.settings.notifyDays = parseInt(document.getElementById('notify-days').value) || 2;
   db.settings.openRouterKey = document.getElementById('openrouter-key').value.trim();
   db.settings.groqApiKey = document.getElementById('groq-key').value.trim();
   // Geräteauswahl speichern
@@ -3542,17 +3517,11 @@ function stepToStr(s) {
 // INIT
 // ============================================================
 async function autoCheckBring() {
-  if (!getToken()) return;
+  if (!_inHaPanel) return;
   try {
-    const resp = await fetch(
-      `${db.settings.haUrl}/api/services/todo/get_items?return_response`,
-      { method:'POST',
-        headers:{ Authorization:`Bearer ${getToken()}`, 'Content-Type':'application/json' },
-        body: JSON.stringify({ entity_id: 'todo.einkauf', status: 'completed' }) }
-    );
-    if (!resp.ok) return;
-    const data = await resp.json();
-    const items = (data?.service_response?.['todo.einkauf']?.items || [])
+    const result = await panelCall('todo', 'get_items', { entity_id: 'todo.einkauf', status: 'completed' }, true);
+    if (!result) return;
+    const items = (result?.response?.['todo.einkauf']?.items || [])
       .filter(i => i.status === 'completed');
     if (items.length === 0) return;
 
@@ -3786,7 +3755,7 @@ async function init() {
     const srv = serverData.settings || {};
     const localHasMore = SHARED_SETTINGS.some(k => db.settings[k] && !srv[k]);
     if (localHasMore) saveToServer();
-  } else if (db.items.length > 0 && db.settings.haToken) {
+  } else if (db.items.length > 0) {
     // Kein Server-File vorhanden aber localStorage hat Daten → einmalig hochladen
     await saveToServer();
   }

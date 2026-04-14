@@ -65,6 +65,28 @@ class VorratsManagerPanel extends HTMLElement {
           this._iframe?.contentWindow?.postMessage({ type: 'vorrat-ai-result', reqId, error: String(err) }, '*');
         }
       }
+
+      else if (e.data?.type === 'vorrat-ha-call') {
+        const reqId = e.data.reqId;
+        try {
+          let result;
+          if (e.data.returnResponse) {
+            result = await this._hass.connection.sendMessagePromise({
+              type: 'call_service',
+              domain: e.data.domain,
+              service: e.data.service,
+              service_data: e.data.data || {},
+              return_response: true
+            });
+          } else {
+            await this._hass.callService(e.data.domain, e.data.service, e.data.data || {});
+            result = { ok: true };
+          }
+          this._iframe?.contentWindow?.postMessage({ type: 'vorrat-ha-result', reqId, result }, '*');
+        } catch(err) {
+          this._iframe?.contentWindow?.postMessage({ type: 'vorrat-ha-result', reqId, error: String(err) }, '*');
+        }
+      }
     };
     window.addEventListener('message', this._msgHandler);
 
