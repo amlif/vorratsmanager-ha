@@ -1546,7 +1546,7 @@
       </div>
 
       <div style="text-align:center;margin-top:8px;font-size:12px;color:var(--text-light)">
-        VorratsManager v1.4.0 · Home Assistant Erweiterung
+        VorratsManager v1.4.1 · Home Assistant Erweiterung
       </div>
     </div>
     <div class="modal-footer">
@@ -3250,7 +3250,7 @@ function renderBringImportModal(lang, locOptions) {
 async function syncBring() {
   const lang = db.settings.lang;
   if (!_inHaPanel) {
-    showToast(Nicht im HA Panel);
+    showToast("Nicht im HA Panel");
     return;
   }
   showToast('⏳ Lade Bring!…');

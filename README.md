@@ -101,6 +101,18 @@ Falls du bisher `pyscript` + `panel_custom` manuell konfiguriert hattest:
 
 ---
 
+## Changelog
+
+### v1.4.1
+- Bugfix: Weißer Bildschirm / App komplett nicht benutzbar nach v1.4.0 Update (fehlende Anführungszeichen in `syncBring()` verursachten JavaScript-Syntaxfehler)
+
+### v1.4.0
+- Bring!-Integration: Erledigte Artikel direkt in Vorrat importieren
+- Lagerort-Auswahl beim Bring!-Import
+- Diät-Filter für KI-Rezepte
+
+---
+
 ## Lizenz
 
 MIT – freie Nutzung, Weitergabe und Anpassung erlaubt.
