@@ -84,23 +84,6 @@ In ⚙️ Einstellungen kannst du außerdem festlegen, welche Küchengeräte du 
 
 ---
 
-## Migration von der manuellen Installation
-
-Falls du bisher `pyscript` + `panel_custom` manuell konfiguriert hattest:
-
-1. HACS-Version installieren, HA neu starten
-2. Aus `configuration.yaml` entfernen:
-   ```yaml
-   # Das kann weg:
-   panel_custom:
-     - name: vorrats-manager-panel
-       ...
-   ```
-3. `pyscript/vorratsmanager.py` kann gelöscht werden
-4. Deine Daten bleiben erhalten (data.json wird nicht überschrieben)
-
----
-
 ## Changelog
 
 ### v1.4.1
