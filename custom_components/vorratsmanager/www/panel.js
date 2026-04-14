@@ -23,7 +23,8 @@ class VorratsManagerPanel extends HTMLElement {
     shadow.appendChild(style);
 
     const iframe = document.createElement("iframe");
-    iframe.src = "/local/vorratsmanager/index.html?v=1.4.1";
+    iframe.src = "/local/vorratsmanager/index.html?v=1.4.2";
+    iframe.allow = "camera; microphone";
     this._iframe = iframe;
     this._iframeLoaded = false;
 

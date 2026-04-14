@@ -1546,7 +1546,7 @@
       </div>
 
       <div style="text-align:center;margin-top:8px;font-size:12px;color:var(--text-light)">
-        VorratsManager v1.4.1 · Home Assistant Erweiterung
+        VorratsManager v1.4.2 · Home Assistant Erweiterung
       </div>
     </div>
     <div class="modal-footer">
@@ -1654,7 +1654,7 @@ const T = {
     settingsDietHint: 'KI berücksichtigt deine Ernährungsweise',
     barcodeScan: '📷 Barcode scannen',
     barcodeScanning: 'Barcode in Kamerabereich halten…',
-    barcodeNotSupported: 'Barcode-Scanner: Chrome/Edge erforderlich',
+    barcodeNotSupported: 'Kamera-Zugriff nicht möglich',
     barcodeNotFound: 'Produkt nicht gefunden',
     barcodeError: 'Fehler beim Nachschlagen',
     printRecipe: '🖨️ Drucken',
@@ -1752,7 +1752,7 @@ const T = {
     settingsDietHint: 'ИИ учитывает ваши пищевые предпочтения',
     barcodeScan: '📷 Сканировать',
     barcodeScanning: 'Держите штрих-код в области камеры…',
-    barcodeNotSupported: 'Сканер: требуется Chrome/Edge',
+    barcodeNotSupported: 'Нет доступа к камере',
     barcodeNotFound: 'Продукт не найден',
     barcodeError: 'Ошибка при поиске',
     printRecipe: '🖨️ Печать',
@@ -1850,7 +1850,7 @@ const T = {
     settingsDietHint: 'AI will respect your dietary preferences',
     barcodeScan: '📷 Scan barcode',
     barcodeScanning: 'Hold barcode in camera view…',
-    barcodeNotSupported: 'Barcode scanner: Chrome/Edge required',
+    barcodeNotSupported: 'Camera access not possible',
     barcodeNotFound: 'Product not found',
     barcodeError: 'Lookup error',
     printRecipe: '🖨️ Print',
@@ -1948,7 +1948,7 @@ const T = {
     settingsDietHint: 'IA do të respektojë preferencat tuaja ushqimore',
     barcodeScan: '📷 Skano barkod',
     barcodeScanning: 'Mbajeni barkoda në zonën e kamerës…',
-    barcodeNotSupported: 'Skaneri: nevojitet Chrome/Edge',
+    barcodeNotSupported: 'Aksesi në kamerë nuk është i mundur',
     barcodeNotFound: 'Produkti nuk u gjet',
     barcodeError: 'Gabim gjatë kërkimit',
     printRecipe: '🖨️ Printo',
@@ -3539,12 +3539,9 @@ async function autoCheckBring() {
 // ============================================================
 let _barcodeStream = null;
 let _barcodeInterval = null;
+let _zxingReader = null;
 
 async function startBarcodeScanner() {
-  if (!('BarcodeDetector' in window)) {
-    showToast(t('barcodeNotSupported'));
-    return;
-  }
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
     _barcodeStream = stream;
@@ -3553,25 +3550,53 @@ async function startBarcodeScanner() {
     document.getElementById('barcode-overlay').style.display = 'flex';
     document.getElementById('barcode-status').textContent = t('barcodeScanning');
 
-    const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'qr_code'] });
-    _barcodeInterval = setInterval(async () => {
-      if (video.readyState < 2) return;
-      try {
-        const codes = await detector.detect(video);
-        if (codes.length > 0) {
-          stopBarcodeScanner();
-          await lookupBarcode(codes[0].rawValue);
-        }
-      } catch(e) {}
-    }, 250);
+    if ('BarcodeDetector' in window) {
+      _startNativeDetector(video);
+    } else {
+      await _startZxingDetector(video);
+    }
   } catch(e) {
     showToast('Kamera-Zugriff verweigert');
+  }
+}
+
+function _startNativeDetector(video) {
+  const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'qr_code'] });
+  _barcodeInterval = setInterval(async () => {
+    if (video.readyState < 2) return;
+    try {
+      const codes = await detector.detect(video);
+      if (codes.length > 0) { stopBarcodeScanner(); await lookupBarcode(codes[0].rawValue); }
+    } catch(e) {}
+  }, 250);
+}
+
+async function _startZxingDetector(video) {
+  try {
+    if (!window.ZXingBrowser) {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.4/umd/index.min.js';
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+    const reader = new ZXingBrowser.BrowserMultiFormatReader();
+    _zxingReader = reader;
+    reader.decodeFromVideoElement(video, (result, err) => {
+      if (result) { stopBarcodeScanner(); lookupBarcode(result.getText()); }
+    });
+  } catch(e) {
+    stopBarcodeScanner();
+    showToast(t('barcodeNotSupported'));
   }
 }
 
 function stopBarcodeScanner() {
   clearInterval(_barcodeInterval);
   _barcodeInterval = null;
+  if (_zxingReader) { try { _zxingReader.reset(); } catch(e) {} _zxingReader = null; }
   if (_barcodeStream) { _barcodeStream.getTracks().forEach(t => t.stop()); _barcodeStream = null; }
   document.getElementById('barcode-overlay').style.display = 'none';
 }

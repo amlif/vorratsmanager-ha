@@ -95,6 +95,9 @@ Die Portionsanzahl lässt sich direkt im Rezept-Tab anpassen (1–8 Personen). B
 
 ## Changelog
 
+### v1.4.2
+- Barcode-Scanner funktioniert jetzt in der HA Companion App auf iOS und Android: `allow="camera"` im iframe gesetzt, ZXing als Fallback wenn BarcodeDetector API nicht verfügbar ist
+
 ### v1.4.1
 - Bugfix: Weißer Bildschirm / App komplett nicht benutzbar nach v1.4.0 Update (fehlende Anführungszeichen in `syncBring()` verursachten JavaScript-Syntaxfehler)
 
