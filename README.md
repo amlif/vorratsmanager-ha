@@ -95,8 +95,11 @@ Die Portionsanzahl lässt sich direkt im Rezept-Tab anpassen (1–8 Personen). B
 
 ## Changelog
 
+### v1.4.3
+- Bugfix: Barcode-Scanner in HA Companion App (iOS/Android): Kamera-Bridge über panel.js – die Kamera wird in der Elternseite geöffnet, Frames per postMessage an den iframe weitergeleitet (WebView gibt Kamera-Berechtigung nicht direkt an iframes weiter)
+
 ### v1.4.2
-- Barcode-Scanner funktioniert jetzt in der HA Companion App auf iOS und Android: `allow="camera"` im iframe gesetzt, ZXing als Fallback wenn BarcodeDetector API nicht verfügbar ist
+- Barcode-Scanner: `allow="camera"` im iframe, ZXing als Fallback wenn BarcodeDetector API fehlt (iOS)
 
 ### v1.4.1
 - Bugfix: Weißer Bildschirm / App komplett nicht benutzbar nach v1.4.0 Update (fehlende Anführungszeichen in `syncBring()` verursachten JavaScript-Syntaxfehler)
