@@ -23,7 +23,7 @@ class VorratsManagerPanel extends HTMLElement {
     shadow.appendChild(style);
 
     const iframe = document.createElement("iframe");
-    iframe.src = "/local/vorratsmanager/index.html?v=1.4.3";
+    iframe.src = "/local/vorratsmanager/index.html?v=1.4.4";
     iframe.allow = "camera; microphone";
     this._iframe = iframe;
     this._iframeLoaded = false;
@@ -110,18 +110,34 @@ class VorratsManagerPanel extends HTMLElement {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
       this._camStream = stream;
+
+      // Video muss im Shadow DOM sein damit der WebView es tatsächlich abspielt
       const video = document.createElement('video');
       video.srcObject = stream;
       video.autoplay = true;
       video.playsInline = true;
       video.muted = true;
-      await new Promise(r => { video.onloadedmetadata = r; });
-      this._camInterval = setInterval(async () => {
-        if (!this._camStream || video.readyState < 2) return;
-        try {
-          const bitmap = await createImageBitmap(video);
+      video.setAttribute('playsinline', '');
+      video.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0.01;pointer-events:none;';
+      this.shadowRoot.appendChild(video);
+      this._camVideo = video;
+
+      await new Promise(r => {
+        if (video.readyState >= 1) { r(); return; }
+        video.addEventListener('loadedmetadata', r, { once: true });
+      });
+      video.play().catch(() => {});
+
+      // Canvas für Frame-Capture (robuster als createImageBitmap auf video)
+      const cap = document.createElement('canvas');
+      this._camInterval = setInterval(() => {
+        if (!this._camStream || video.readyState < 2 || !video.videoWidth) return;
+        cap.width = video.videoWidth;
+        cap.height = video.videoHeight;
+        cap.getContext('2d').drawImage(video, 0, 0);
+        createImageBitmap(cap).then(bitmap => {
           this._iframe?.contentWindow?.postMessage({ type: 'vorrat-camera-frame', bitmap }, '*', [bitmap]);
-        } catch(e) {}
+        }).catch(() => {});
       }, 250);
     } catch(e) {
       this._iframe?.contentWindow?.postMessage({ type: 'vorrat-camera-error' }, '*');
@@ -131,6 +147,7 @@ class VorratsManagerPanel extends HTMLElement {
   _stopCameraBridge() {
     clearInterval(this._camInterval);
     this._camInterval = null;
+    if (this._camVideo) { this._camVideo.remove(); this._camVideo = null; }
     if (this._camStream) { this._camStream.getTracks().forEach(t => t.stop()); this._camStream = null; }
   }
 
