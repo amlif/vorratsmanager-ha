@@ -1331,6 +1331,7 @@
   <div class="barcode-box">
     <video id="barcode-video" autoplay playsinline muted></video>
     <canvas id="barcode-canvas" style="display:none;width:100%;height:auto;border-radius:8px;"></canvas>
+    <input type="file" id="barcode-file-input" accept="image/*" capture="environment" style="display:none">
     <div class="barcode-corners"></div>
     <div class="barcode-scanline"></div>
     <div id="barcode-status">Barcode in Kamerabereich halten…</div>
@@ -1547,7 +1548,7 @@
       </div>
 
       <div style="text-align:center;margin-top:8px;font-size:12px;color:var(--text-light)">
-        VorratsManager v1.4.4 · Home Assistant Erweiterung
+        VorratsManager v1.4.5 · Home Assistant Erweiterung
       </div>
     </div>
     <div class="modal-footer">
@@ -2172,20 +2173,6 @@ window.addEventListener('message', async (e) => {
       showToast(t('toastSync'));
       setTimeout(() => setSyncIndicator('connected'), 2000);
     }
-  }
-  else if (e.data?.type === 'vorrat-camera-frame') {
-    // Kamera-Frame von panel.js (Bridge-Modus für HA Companion App)
-    const bitmap = e.data.bitmap;
-    const canvas = document.getElementById('barcode-canvas');
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
-    canvas.getContext('2d').drawImage(bitmap, 0, 0);
-    bitmap.close();
-    _detectBarcodeFromCanvas(canvas);
-  }
-  else if (e.data?.type === 'vorrat-camera-error') {
-    stopBarcodeScanner();
-    showToast('Kamera-Zugriff verweigert');
   }
 });
 
@@ -3555,36 +3542,66 @@ async function autoCheckBring() {
 let _barcodeStream = null;
 let _barcodeInterval = null;
 let _zxingReader = null;
-let _barcodeMode = 'direct'; // 'direct' | 'bridge'
-let _barcodeDetecting = false;
 
-async function startBarcodeScanner() {
-  document.getElementById('barcode-overlay').style.display = 'flex';
-  document.getElementById('barcode-status').textContent = t('barcodeScanning');
+// File-Input Handler für mobile (HA Companion App)
+document.getElementById('barcode-file-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
 
-  if (_inHaPanel) {
-    // HA Companion App: Kamera läuft in panel.js (Elternseite), Frames kommen per postMessage
-    _barcodeMode = 'bridge';
-    document.getElementById('barcode-video').style.display = 'none';
-    document.getElementById('barcode-canvas').style.display = 'block';
-    window.parent.postMessage({ type: 'vorrat-barcode-start' }, '*');
-  } else {
-    // Direktzugriff im Browser: Kamera direkt im iframe
-    _barcodeMode = 'direct';
-    document.getElementById('barcode-video').style.display = 'block';
-    document.getElementById('barcode-canvas').style.display = 'none';
-    await _startDirectCamera();
-  }
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = async () => {
+    URL.revokeObjectURL(url);
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    canvas.getContext('2d').drawImage(img, 0, 0);
+
+    let found = false;
+    if ('BarcodeDetector' in window) {
+      try {
+        const codes = await new BarcodeDetector({ formats: ['ean_13','ean_8','upc_a','upc_e','code_128','qr_code'] }).detect(canvas);
+        if (codes.length > 0) { await lookupBarcode(codes[0].rawValue); found = true; }
+      } catch(e) {}
+    }
+    if (!found) {
+      try {
+        if (!window.ZXingBrowser) await _loadZxing();
+        const result = await new ZXingBrowser.BrowserMultiFormatReader().decodeFromImageElement(canvas);
+        if (result) { await lookupBarcode(result.getText()); found = true; }
+      } catch(e) {}
+    }
+    if (!found) showToast(t('barcodeNotFound'));
+  };
+  img.src = url;
+});
+
+async function _loadZxing() {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.4/umd/index.min.js';
+    s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
 }
 
-async function _startDirectCamera() {
+async function startBarcodeScanner() {
+  if (_inHaPanel) {
+    // HA Companion App: native Kamera über file input (funktioniert in allen WebViews)
+    document.getElementById('barcode-file-input').click();
+    return;
+  }
+  // Desktop/Browser: Live-Kamera im Overlay
+  document.getElementById('barcode-overlay').style.display = 'flex';
+  document.getElementById('barcode-status').textContent = t('barcodeScanning');
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
     _barcodeStream = stream;
     const video = document.getElementById('barcode-video');
     video.srcObject = stream;
     if ('BarcodeDetector' in window) {
-      const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'qr_code'] });
+      const detector = new BarcodeDetector({ formats: ['ean_13','ean_8','upc_a','upc_e','code_128','qr_code'] });
       _barcodeInterval = setInterval(async () => {
         if (video.readyState < 2) return;
         try {
@@ -3593,7 +3610,11 @@ async function _startDirectCamera() {
         } catch(e) {}
       }, 250);
     } else {
-      await _startZxingOnVideo(video);
+      if (!window.ZXingBrowser) await _loadZxing();
+      _zxingReader = new ZXingBrowser.BrowserMultiFormatReader();
+      _zxingReader.decodeFromVideoElement(video, (result) => {
+        if (result) { stopBarcodeScanner(); lookupBarcode(result.getText()); }
+      });
     }
   } catch(e) {
     stopBarcodeScanner();
@@ -3601,60 +3622,11 @@ async function _startDirectCamera() {
   }
 }
 
-async function _startZxingOnVideo(video) {
-  try {
-    if (!window.ZXingBrowser) {
-      await new Promise((resolve, reject) => {
-        const s = document.createElement('script');
-        s.src = 'https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.4/umd/index.min.js';
-        s.onload = resolve; s.onerror = reject;
-        document.head.appendChild(s);
-      });
-    }
-    _zxingReader = new ZXingBrowser.BrowserMultiFormatReader();
-    _zxingReader.decodeFromVideoElement(video, (result) => {
-      if (result) { stopBarcodeScanner(); lookupBarcode(result.getText()); }
-    });
-  } catch(e) {
-    stopBarcodeScanner();
-    showToast(t('barcodeNotSupported'));
-  }
-}
-
-async function _detectBarcodeFromCanvas(canvas) {
-  if (_barcodeDetecting) return;
-  _barcodeDetecting = true;
-  try {
-    if ('BarcodeDetector' in window) {
-      const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'qr_code'] });
-      const codes = await detector.detect(canvas);
-      if (codes.length > 0) { stopBarcodeScanner(); await lookupBarcode(codes[0].rawValue); return; }
-    } else {
-      if (!window.ZXingBrowser) {
-        await new Promise((resolve, reject) => {
-          const s = document.createElement('script');
-          s.src = 'https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.4/umd/index.min.js';
-          s.onload = resolve; s.onerror = reject;
-          document.head.appendChild(s);
-        });
-      }
-      if (!_zxingReader) _zxingReader = new ZXingBrowser.BrowserMultiFormatReader();
-      const result = await _zxingReader.decodeFromImageElement(canvas);
-      if (result) { stopBarcodeScanner(); await lookupBarcode(result.getText()); return; }
-    }
-  } catch(e) {} // NotFoundException ist normal (kein Barcode im Frame)
-  finally { _barcodeDetecting = false; }
-}
-
 function stopBarcodeScanner() {
   clearInterval(_barcodeInterval);
   _barcodeInterval = null;
-  _barcodeDetecting = false;
   if (_zxingReader) { try { _zxingReader.reset(); } catch(e) {} _zxingReader = null; }
   if (_barcodeStream) { _barcodeStream.getTracks().forEach(t => t.stop()); _barcodeStream = null; }
-  if (_barcodeMode === 'bridge') window.parent.postMessage({ type: 'vorrat-barcode-stop' }, '*');
-  document.getElementById('barcode-video').style.display = 'block';
-  document.getElementById('barcode-canvas').style.display = 'none';
   document.getElementById('barcode-overlay').style.display = 'none';
 }
 
