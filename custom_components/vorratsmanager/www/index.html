@@ -1330,8 +1330,6 @@
 <div id="barcode-overlay">
   <div class="barcode-box">
     <video id="barcode-video" autoplay playsinline muted></video>
-    <canvas id="barcode-canvas" style="display:none;width:100%;height:auto;border-radius:8px;"></canvas>
-    <input type="file" id="barcode-file-input" accept="image/*" capture="environment" style="display:none">
     <div class="barcode-corners"></div>
     <div class="barcode-scanline"></div>
     <div id="barcode-status">Barcode in Kamerabereich halten…</div>
@@ -1431,7 +1429,19 @@
       <button class="icon-btn" onclick="closeAllModals()">✕</button>
     </div>
     <div class="modal-body">
-
+      <div class="settings-section">
+        <div class="settings-section-title" data-key="settingsHa">Home Assistant</div>
+        <div class="settings-row">
+          <div class="settings-item">
+            <span class="settings-item-icon">🛒</span>
+            <div class="settings-item-body">
+              <div class="settings-item-label">Einkaufsliste (Entity ID)</div>
+              <div style="font-size:11px;color:var(--text-muted);margin:2px 0 4px">HA Todo-Entity für Bring! Sync</div>
+              <input class="form-input" id="todo-entity" type="text" placeholder="todo.einkauf" style="margin-top:2px">
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div class="settings-section">
         <div class="settings-section-title">🤖 KI-Rezepte</div>
@@ -1548,7 +1558,7 @@
       </div>
 
       <div style="text-align:center;margin-top:8px;font-size:12px;color:var(--text-light)">
-        VorratsManager v1.4.5 · Home Assistant Erweiterung
+        VorratsManager v1.4.6 · Home Assistant Erweiterung
       </div>
     </div>
     <div class="modal-footer">
@@ -1656,10 +1666,11 @@ const T = {
     settingsDietHint: 'KI berücksichtigt deine Ernährungsweise',
     barcodeScan: '📷 Barcode scannen',
     barcodeScanning: 'Barcode in Kamerabereich halten…',
-    barcodeNotSupported: 'Kamera-Zugriff nicht möglich',
+    barcodeNotSupported: 'Barcode-Scanner: Chrome/Edge erforderlich',
     barcodeNotFound: 'Produkt nicht gefunden',
     barcodeError: 'Fehler beim Nachschlagen',
     printRecipe: '🖨️ Drucken',
+    expiringTitle: 'Läuft bald ab',
   },
   ru: {
     tabFreezer: 'Морозильник',
@@ -1754,10 +1765,11 @@ const T = {
     settingsDietHint: 'ИИ учитывает ваши пищевые предпочтения',
     barcodeScan: '📷 Сканировать',
     barcodeScanning: 'Держите штрих-код в области камеры…',
-    barcodeNotSupported: 'Нет доступа к камере',
+    barcodeNotSupported: 'Сканер: требуется Chrome/Edge',
     barcodeNotFound: 'Продукт не найден',
     barcodeError: 'Ошибка при поиске',
     printRecipe: '🖨️ Печать',
+    expiringTitle: 'Истекает срок',
   },
   en: {
     tabFreezer: 'Freezer',
@@ -1852,10 +1864,11 @@ const T = {
     settingsDietHint: 'AI will respect your dietary preferences',
     barcodeScan: '📷 Scan barcode',
     barcodeScanning: 'Hold barcode in camera view…',
-    barcodeNotSupported: 'Camera access not possible',
+    barcodeNotSupported: 'Barcode scanner: Chrome/Edge required',
     barcodeNotFound: 'Product not found',
     barcodeError: 'Lookup error',
     printRecipe: '🖨️ Print',
+    expiringTitle: 'Expiring soon',
   },
   sq: {
     tabFreezer: 'Ngrirësi',
@@ -1950,10 +1963,11 @@ const T = {
     settingsDietHint: 'IA do të respektojë preferencat tuaja ushqimore',
     barcodeScan: '📷 Skano barkod',
     barcodeScanning: 'Mbajeni barkoda në zonën e kamerës…',
-    barcodeNotSupported: 'Aksesi në kamerë nuk është i mundur',
+    barcodeNotSupported: 'Skaneri: nevojitet Chrome/Edge',
     barcodeNotFound: 'Produkti nuk u gjet',
     barcodeError: 'Gabim gjatë kërkimit',
     printRecipe: '🖨️ Printo',
+    expiringTitle: 'Skadon shpejt',
   }
 };
 
@@ -2052,6 +2066,7 @@ let db = {
     darkMode: false,
     appliances: ['Thermomix','Airfryer','Grill','Backofen','Herd'],
     dietFilter: [],
+    todoEntity: 'todo.einkauf',
   }
 };
 
@@ -2073,11 +2088,14 @@ function loadDb() {
     const saved = localStorage.getItem('fridgeapp_v1');
     if (saved) {
       const parsed = JSON.parse(saved);
+      // Settings-Defaults mit gespeicherten Werten mergen (neue Keys bleiben erhalten)
+      const defaults = db.settings;
       db = parsed;
+      db.settings = Object.assign({}, defaults, parsed.settings || {});
       if (!Array.isArray(db.savedRecipes)) db.savedRecipes = [];
       if (!Array.isArray(db.settings.appliances)) db.settings.appliances = ['Thermomix','Airfryer','Grill','Backofen','Herd'];
       if (!Array.isArray(db.settings.dietFilter)) db.settings.dietFilter = [];
-      if (!db.settings.lang || !['de','en','ru','sq'].includes(db.settings.lang)) db.settings.lang = 'de';
+      if (!db.settings.todoEntity) db.settings.todoEntity = 'todo.einkauf';
     }
   } catch(e) {}
   try {
@@ -2098,7 +2116,7 @@ let _lastSavedTs = '';
 let _inHaPanel = false; // true wenn in panel.js iframe
 
 // Einstellungen die server-seitig geteilt werden (alle Geräte)
-const SHARED_SETTINGS = ['openRouterKey','groqApiKey','notifyDays','bringToken','bringListUuid','bringListName','appliances','dietFilter'];
+const SHARED_SETTINGS = ['openRouterKey','groqApiKey','notifyDays','bringToken','bringListUuid','bringListName','appliances','dietFilter','todoEntity'];
 
 function getSharedSettings() {
   const s = {};
@@ -2108,8 +2126,9 @@ function getSharedSettings() {
 
 function applySharedSettings(shared) {
   if (!shared) return;
-  // Nur nicht-leere Server-Werte übernehmen – lokale Keys bleiben wenn Server leer ist
-  SHARED_SETTINGS.forEach(k => { if (shared[k]) db.settings[k] = shared[k]; });
+  // Server-Wert übernehmen wenn er definiert und nicht null ist
+  // (shared[k] !== undefined && shared[k] !== null statt truthy-check, damit 0/false/[] korrekt sync werden)
+  SHARED_SETTINGS.forEach(k => { if (shared[k] !== undefined && shared[k] !== null) db.settings[k] = shared[k]; });
 }
 
 async function loadFromServer() {
@@ -2132,17 +2151,8 @@ function saveToServer() {
       settings: getSharedSettings(),
       updated
     }, '*');
-  } else if (getToken()) {
-    // Direktzugriff ohne Panel: eigener Token
-    fetch(`${db.settings.haUrl}/api/services/vorratsmanager/vorrat_save`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: db.items, savedRecipes: db.savedRecipes, settings: getSharedSettings(), updated })
-    }).catch(() => {});
   }
 }
-
-function getToken() { return db.settings.haToken; }
 
 function setSyncIndicator(state) {
   const el = document.getElementById('sync-indicator');
@@ -2220,33 +2230,30 @@ function today() {
 }
 
 // ============================================================
-// HA API
+// HA API – alle Service-Calls laufen über panel.js (kein Token nötig)
 // ============================================================
-function panelCall(domain, service, data = {}, returnResponse = false) {
-  return new Promise(resolve => {
-    if (!_inHaPanel) { resolve(null); return; }
+function callServiceViaPanel(domain, service, data = {}) {
+  if (!_inHaPanel) return Promise.resolve(null);
+  return new Promise((resolve, reject) => {
     const reqId = Math.random().toString(36).slice(2);
-    const h = e => {
-      if (e.data?.type === 'vorrat-ha-result' && e.data.reqId === reqId) {
-        window.removeEventListener('message', h);
-        resolve(e.data.error ? null : e.data.result);
-      }
+    const timeout = setTimeout(() => reject(new Error('service timeout')), 15000);
+    const handler = (e) => {
+      if (e.data?.type !== 'vorrat-service-result' || e.data.reqId !== reqId) return;
+      window.removeEventListener('message', handler);
+      clearTimeout(timeout);
+      if (e.data.error) reject(new Error(e.data.error));
+      else resolve(e.data.result);
     };
-    window.addEventListener('message', h);
-    window.parent.postMessage({ type: 'vorrat-ha-call', reqId, domain, service, data, returnResponse }, '*');
+    window.addEventListener('message', handler);
+    window.parent.postMessage({ type: 'vorrat-service', reqId, domain, service, data }, '*');
   });
 }
 
-async function haCallService(domain, service, data = {}) {
-  const result = await panelCall(domain, service, data, false);
-  return result !== null;
-}
-
 async function checkExpiryAndNotify() {
+  if (!_inHaPanel) return;
   const notifyDays = Number(db.settings.notifyDays) || 2;
   const todayStr = today();
   if (db.settings.lastNotifyDate === todayStr) return;
-  if (!getToken()) return;
 
   const expiring = db.items.filter(item => {
     const days = daysUntilExpiry(item.expiry);
@@ -2261,17 +2268,16 @@ async function checkExpiryAndNotify() {
     return { icon: cat.emoji, name: i.name, expiry: formatDate(i.expiry) };
   }));
 
-  const ok = await haCallService('telegram_bot', 'send_message', {
-    title: T[lang].notifyTitle,
-    message: msg,
-    disable_notification: false
-  });
-
-  if (ok) {
+  try {
+    await callServiceViaPanel('telegram_bot', 'send_message', {
+      title: T[lang].notifyTitle,
+      message: msg,
+      disable_notification: false
+    });
     db.settings.lastNotifyDate = todayStr;
     saveDb();
     showToast(t('toastNotified'));
-  }
+  } catch(e) {}
 }
 
 // ============================================================
@@ -2581,7 +2587,6 @@ function renderAIRecipeCard(r, i) {
   const meta = APPLIANCE_META[appliance] || APPLIANCE_META['Herd'];
 
   const cookDe = r.cookidooDe ? `https://cookidoo.de/search/de-DE?query=${encodeURIComponent(r.cookidooDe)}` : '';
-  const cookRu = r.cookidooRu ? `https://cookidoo.ru/search/ru-RU?query=${encodeURIComponent(r.cookidooRu)}` : '';
 
   const ingredientsLabels = { de: 'Zutaten', en: 'Ingredients', ru: 'Ингредиенты', sq: 'Përbërësit' };
   const ingredientsLabel = ingredientsLabels[lang] || 'Zutaten';
@@ -2608,12 +2613,11 @@ function renderAIRecipeCard(r, i) {
       </div>`).join('')}
     </div>` : '';
 
-  const cookidooHtml = (cookDe || cookRu) ? `
+  const cookidooHtml = cookDe ? `
     <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
       <div style="font-size:11px;color:var(--text-light);margin-bottom:6px">${cookidooLabel}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        ${cookDe ? `<a class="btn btn-cookidoo btn-sm" href="${escAttr(cookDe)}" target="_blank" rel="noopener">🔍 Cookidoo</a>` : ''}
-        ${cookRu ? `` : ''}
+        <a class="btn btn-cookidoo btn-sm" href="${escAttr(cookDe)}" target="_blank" rel="noopener">🔍 Cookidoo</a>
       </div>
     </div>` : '';
 
@@ -2847,7 +2851,7 @@ Required fields per recipe:
   Grill: preheat grill, direct/indirect heat, exact grill times per side, resting time.
   Backofen: exact preheat temperature, fan or top/bottom heat, exact duration.
   Herd: heat level (low/medium/high), cooking time, visual doneness check.
-- cookidooDe: 2-3 words for Cookidoo search in German
+- cookidooDe: 2-3 words for Cookidoo search in German (optional, omit if not applicable)
 - usedIngredients: array of used ingredients from the input list`;
 
   try {
@@ -2879,20 +2883,22 @@ function renderExpiringForRecipes() {
     const cat = getCatInfo(item.location, item.category);
     const days = daysUntilExpiry(item.expiry);
     const badge = expiryBadge(days, lang);
-    return `<div class="item-card expiry-critical" onclick="openEditModal('${item.id}')" style="cursor:pointer">
-      <div class="item-emoji">${cat.emoji}</div>
-      <div class="item-body">
-        <div class="item-name">${escHtml(item.name)}</div>
-        <div class="item-meta">${item.qty} ${escHtml(item.unit)}</div>
-      </div>
-      <div class="item-right">
-        <span class="expiry-badge ${badge.cls}">${badge.text}</span>
+    return `<div class="item-card expiry-critical">
+      <div class="item-card-main" onclick="openEditModal('${item.id}')">
+        <div class="item-emoji">${cat.emoji}</div>
+        <div class="item-body">
+          <div class="item-name">${escHtml(item.name)}</div>
+          <div class="item-meta">${item.qty} ${escHtml(item.unit)}</div>
+        </div>
+        <div class="item-right">
+          <span class="expiry-badge ${badge.cls}">${badge.text}</span>
+        </div>
       </div>
     </div>`;
   }).join('');
 
   return `<div class="recipe-info-card">
-    <div class="recipe-info-title">🔴 ${lang === 'ru' ? 'Истекает срок' : lang === 'sq' ? 'Skadon shpejt' : 'Läuft bald ab'}</div>
+    <div class="recipe-info-title">🔴 ${t('expiringTitle')}</div>
     <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">${chips}</div>
   </div>`;
 }
@@ -3022,6 +3028,10 @@ function switchTab(tab) {
   // Update FAB visibility
   const fab = document.getElementById('fab-btn');
   fab.style.display = (tab === 'recipes') ? 'none' : 'flex';
+
+  // Update header icon + title
+  const headerIcons = { freezer: '❄️', fridge: '🥬', pantry: '🏺', recipes: '👨‍🍳' };
+  document.getElementById('header-icon').textContent = headerIcons[tab] || '🏺';
 
   if (tab === 'pantry') renderList('pantry');
 
@@ -3181,7 +3191,7 @@ function openTakenModal(id) {
   // Display
   document.getElementById('taken-qty-display').textContent = takenAmount;
 
-  // Bring checkbox: show only if token set
+  // Bring checkbox: nur im HA-Panel
   document.getElementById('bring-toggle-wrap').style.display = _inHaPanel ? '' : 'none';
   document.getElementById('bring-checkbox').checked = true;
 
@@ -3199,7 +3209,7 @@ function adjustTaken(delta) {
   const item = db.items.find(i => i.id === takenItemId);
   if (!item) return;
   const step = item.qty <= 5 ? 0.5 : 1;
-  takenAmount = Math.max(0.5, Math.min(item.qty, Math.round((takenAmount + delta * step) * 10) / 10));
+  takenAmount = Math.max(0.1, Math.min(item.qty, Math.round((takenAmount + delta * step) * 10) / 10));
   document.getElementById('taken-qty-display').textContent = takenAmount;
 }
 
@@ -3221,7 +3231,7 @@ async function addToBring(id) {
   const item = db.items.find(i => i.id === id);
   if (!item || !_inHaPanel) return;
   try {
-    await haCallService('todo', 'add_item', { entity_id: 'todo.einkauf', item: item.name });
+    await callServiceViaPanel('todo', 'add_item', { entity_id: db.settings.todoEntity || 'todo.einkauf', item: item.name });
     showToast('🛒 Bring! ✓');
   } catch(e) {
     showToast('🛒 Fehler');
@@ -3245,21 +3255,21 @@ function renderBringImportModal(lang, locOptions) {
         </select>
       </div>`).join('')}
   `;
-  document.getElementById('bring-import-cancel').textContent = lang==='ru' ? 'Abbrechen' : 'Abbrechen';
-  document.getElementById('bring-import-confirm').textContent = lang==='ru' ? 'Добавить' : 'Hinzufügen';
+  document.getElementById('bring-import-cancel').textContent = t('btnCancel');
+  document.getElementById('bring-import-confirm').textContent = lang==='ru' ? 'Добавить' : lang==='en' ? 'Add' : lang==='sq' ? 'Shto' : 'Hinzufügen';
 }
 
 async function syncBring() {
   const lang = db.settings.lang;
   if (!_inHaPanel) {
-    showToast("Nicht im HA Panel");
+    showToast(lang === 'ru' ? 'Nur im HA-Panel verfügbar' : 'Nur im HA-Panel verfügbar');
     return;
   }
   showToast('⏳ Lade Bring!…');
   try {
-    const result = await panelCall('todo', 'get_items', { entity_id: 'todo.einkauf', status: 'completed' }, true);
-    if (!result) throw new Error('No response');
-    const raw = result?.response?.['todo.einkauf']?.items || [];
+    const _eid = db.settings.todoEntity || 'todo.einkauf';
+    const data = await callServiceViaPanel('todo', 'get_items', { entity_id: _eid, status: 'completed' });
+    const raw = data?.response?.[_eid]?.items || [];
     const items = raw.filter(i => i.status === 'completed');
 
     if (items.length === 0) {
@@ -3267,7 +3277,6 @@ async function syncBring() {
       return;
     }
 
-    // Defaults: pantry for non-food-fresh items
     bringImportItems = items.map(i => ({ summary: i.summary || i.uid || '?', loc: 'pantry', uid: i.uid }));
 
     const locOptions = [
@@ -3308,12 +3317,12 @@ async function confirmBringImport() {
   renderAll();
   showToast(t('bringImportDone', added));
 
-  // Mark imported items as "needsAction" again in Bring! so they're cleared from completed
+  // Mark imported items as "needsAction" again so they're cleared from completed list
   if (_inHaPanel && bringImportItems.length > 0) {
     try {
       for (const it of bringImportItems) {
-        await haCallService('todo', 'update_item', {
-          entity_id: 'todo.einkauf',
+        await callServiceViaPanel('todo', 'update_item', {
+          entity_id: db.settings.todoEntity || 'todo.einkauf',
           item: it.summary,
           status: 'needsAction'
         });
@@ -3358,6 +3367,7 @@ function openSettings() {
   document.getElementById('notify-days').value = db.settings.notifyDays || 2;
   document.getElementById('openrouter-key').value = db.settings.openRouterKey || '';
   document.getElementById('groq-key').value = db.settings.groqApiKey || '';
+  document.getElementById('todo-entity').value = db.settings.todoEntity || 'todo.einkauf';
 
   // Geräte-Toggles rendern
   const selected = db.settings.appliances || ['Thermomix','Airfryer','Grill','Backofen','Herd'];
@@ -3412,9 +3422,10 @@ function toggleDiet(id, btn) {
 }
 
 function saveSettings() {
-    db.settings.notifyDays = parseInt(document.getElementById('notify-days').value) || 2;
+  db.settings.notifyDays = parseInt(document.getElementById('notify-days').value) || 2;
   db.settings.openRouterKey = document.getElementById('openrouter-key').value.trim();
   db.settings.groqApiKey = document.getElementById('groq-key').value.trim();
+  db.settings.todoEntity = document.getElementById('todo-entity').value.trim() || 'todo.einkauf';
   // Geräteauswahl speichern
   const activeBtns = document.querySelectorAll('#appliance-toggles button[data-on="true"]');
   db.settings.appliances = [...activeBtns].map(b => b.dataset.appliance);
@@ -3480,6 +3491,7 @@ function importData(e) {
 
 function clearAllData() {
   db.items = [];
+  db.savedRecipes = [];
   saveDb();
   renderAll();
   showToast(t('toastDeleted'));
@@ -3521,13 +3533,11 @@ function stepToStr(s) {
 async function autoCheckBring() {
   if (!_inHaPanel) return;
   try {
-    const result = await panelCall('todo', 'get_items', { entity_id: 'todo.einkauf', status: 'completed' }, true);
-    if (!result) return;
-    const items = (result?.response?.['todo.einkauf']?.items || [])
-      .filter(i => i.status === 'completed');
+    const _eid = db.settings.todoEntity || 'todo.einkauf';
+    const data = await callServiceViaPanel('todo', 'get_items', { entity_id: _eid, status: 'completed' });
+    const items = (data?.response?.[_eid]?.items || []).filter(i => i.status === 'completed');
     if (items.length === 0) return;
 
-    // Show badge on Bring! Sync button in pantry tab
     const syncBtn = document.querySelector('[onclick="syncBring()"]');
     if (syncBtn) {
       syncBtn.textContent = `🛒 Bring! Sync (${items.length})`;
@@ -3541,83 +3551,32 @@ async function autoCheckBring() {
 // ============================================================
 let _barcodeStream = null;
 let _barcodeInterval = null;
-let _zxingReader = null;
-
-// File-Input Handler für mobile (HA Companion App)
-document.getElementById('barcode-file-input').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  e.target.value = '';
-  if (!file) return;
-
-  const url = URL.createObjectURL(file);
-  const img = new Image();
-  img.onload = async () => {
-    URL.revokeObjectURL(url);
-    const canvas = document.createElement('canvas');
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    canvas.getContext('2d').drawImage(img, 0, 0);
-
-    let found = false;
-    if ('BarcodeDetector' in window) {
-      try {
-        const codes = await new BarcodeDetector({ formats: ['ean_13','ean_8','upc_a','upc_e','code_128','qr_code'] }).detect(canvas);
-        if (codes.length > 0) { await lookupBarcode(codes[0].rawValue); found = true; }
-      } catch(e) {}
-    }
-    if (!found) {
-      try {
-        if (!window.ZXingBrowser) await _loadZxing();
-        const result = await new ZXingBrowser.BrowserMultiFormatReader().decodeFromImageElement(canvas);
-        if (result) { await lookupBarcode(result.getText()); found = true; }
-      } catch(e) {}
-    }
-    if (!found) showToast(t('barcodeNotFound'));
-  };
-  img.src = url;
-});
-
-async function _loadZxing() {
-  return new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.4/umd/index.min.js';
-    s.onload = resolve; s.onerror = reject;
-    document.head.appendChild(s);
-  });
-}
 
 async function startBarcodeScanner() {
-  if (_inHaPanel) {
-    // HA Companion App: native Kamera über file input (funktioniert in allen WebViews)
-    document.getElementById('barcode-file-input').click();
+  if (!('BarcodeDetector' in window)) {
+    showToast(t('barcodeNotSupported'));
     return;
   }
-  // Desktop/Browser: Live-Kamera im Overlay
-  document.getElementById('barcode-overlay').style.display = 'flex';
-  document.getElementById('barcode-status').textContent = t('barcodeScanning');
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
     _barcodeStream = stream;
     const video = document.getElementById('barcode-video');
     video.srcObject = stream;
-    if ('BarcodeDetector' in window) {
-      const detector = new BarcodeDetector({ formats: ['ean_13','ean_8','upc_a','upc_e','code_128','qr_code'] });
-      _barcodeInterval = setInterval(async () => {
-        if (video.readyState < 2) return;
-        try {
-          const codes = await detector.detect(video);
-          if (codes.length > 0) { stopBarcodeScanner(); await lookupBarcode(codes[0].rawValue); }
-        } catch(e) {}
-      }, 250);
-    } else {
-      if (!window.ZXingBrowser) await _loadZxing();
-      _zxingReader = new ZXingBrowser.BrowserMultiFormatReader();
-      _zxingReader.decodeFromVideoElement(video, (result) => {
-        if (result) { stopBarcodeScanner(); lookupBarcode(result.getText()); }
-      });
-    }
+    document.getElementById('barcode-overlay').style.display = 'flex';
+    document.getElementById('barcode-status').textContent = t('barcodeScanning');
+
+    const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'qr_code'] });
+    _barcodeInterval = setInterval(async () => {
+      if (video.readyState < 2) return;
+      try {
+        const codes = await detector.detect(video);
+        if (codes.length > 0) {
+          stopBarcodeScanner();
+          await lookupBarcode(codes[0].rawValue);
+        }
+      } catch(e) {}
+    }, 250);
   } catch(e) {
-    stopBarcodeScanner();
     showToast('Kamera-Zugriff verweigert');
   }
 }
@@ -3625,7 +3584,6 @@ async function startBarcodeScanner() {
 function stopBarcodeScanner() {
   clearInterval(_barcodeInterval);
   _barcodeInterval = null;
-  if (_zxingReader) { try { _zxingReader.reset(); } catch(e) {} _zxingReader = null; }
   if (_barcodeStream) { _barcodeStream.getTracks().forEach(t => t.stop()); _barcodeStream = null; }
   document.getElementById('barcode-overlay').style.display = 'none';
 }
@@ -3722,7 +3680,7 @@ function openStats() {
           const d = daysUntilExpiry(i.expiry);
           return `<div class="stats-ov-row">
             <span>${escHtml(i.name)}</span>
-            <span style="color:var(--critical);font-weight:700">${d <= 0 ? '⛔ Abgelaufen' : '⚠️ ' + d + 'd'}</span>
+            <span style="color:var(--critical);font-weight:700">${d <= 0 ? t('badgeCritical', 0) : '⚠️ ' + d + 'd'}</span>
           </div>`;
         }).join('')}
       </div>`;
@@ -3809,9 +3767,6 @@ async function init() {
     const srv = serverData.settings || {};
     const localHasMore = SHARED_SETTINGS.some(k => db.settings[k] && !srv[k]);
     if (localHasMore) saveToServer();
-  } else if (db.items.length > 0) {
-    // Kein Server-File vorhanden aber localStorage hat Daten → einmalig hochladen
-    await saveToServer();
   }
 
   setTimeout(checkExpiryAndNotify, 2000);

@@ -1,6 +1,6 @@
 # VorratsManager für Home Assistant
 
-Verwalte **Gefriertruhe, Kühlschrank und Vorratsraum** direkt in Home Assistant – mit KI-Rezeptvorschlägen, Favoriten, Bring!-Integration und Echtzeit-Sync zwischen allen Geräten.
+Verwalte **Gefriertruhe, Kühlschrank und Vorratsraum** direkt in Home Assistant – mit KI-Rezeptvorschlägen, Favoriten, Bring!-Integration und Echtzeit-Sync zwischen allen Geräten im Haushalt.
 
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange)](https://hacs.xyz)
 ![HA](https://img.shields.io/badge/Home%20Assistant-2024.1+-blue?logo=homeassistant)
@@ -16,28 +16,28 @@ Verwalte **Gefriertruhe, Kühlschrank und Vorratsraum** direkt in Home Assistant
 | ⚠️ MHD-Tracking | Ablaufwarnungen (konfigurierbar) + Telegram-Benachrichtigungen |
 | 🤖 KI-Rezepte | Thermomix · Airfryer · Grill · Backofen · Herd |
 | 🍳 Gerätewahl | Nur Rezepte für deine vorhandenen Geräte |
-| 🥗 Diät-Filter | KI berücksichtigt deine Ernährungspräferenzen |
-| 👥 Portionsauswahl | Rezeptmenge für 1–8 Personen anpassen |
+| 🥗 Diät-Filter | Vegetarisch · Vegan · Glutenfrei |
+| 👥 Portionsauswahl | Rezeptmenge für 1–10 Personen |
 | ⭐ Favoriten | KI-Rezepte speichern – sync auf allen Geräten |
-| 🖨️ Rezept drucken | Druckansicht für gespeicherte Rezepte |
-| 🛒 Bring!-Integration | Erledigte Einkäufe direkt in den Vorrat |
+| 🖨️ Rezept drucken | Druckfreundliche Ansicht |
+| 🛒 Bring!-Integration | Erledigte Einkäufe direkt in den Vorrat importieren |
 | 📷 Barcode-Scanner | Produkt scannen → automatisch befüllen (Open Food Facts) |
 | 📊 Statistiken | Übersicht über Lagermengen und Ablaufdaten |
-| 🔄 Echtzeit-Sync | Alle Geräte im Haushalt synchron |
+| 🔄 Echtzeit-Sync | Alle Geräte im Haushalt synchron (WebSocket) |
 | 🌐 4 Sprachen | Deutsch · English · Русский · Shqip |
 | 🌙 Dark Mode | |
 | 🔍 Cookidoo-Suche | Smarte Zutatenauswahl (MHD-priorisiert) |
-| 📤 Export / Import | JSON |
+| 📤 Export / Import | Datensicherung als JSON |
 
 ---
 
 ## Installation via HACS (empfohlen)
 
-1. **HACS** → **Integrationen** → **⋮** (oben rechts) → **Benutzerdefinierte Repositories**
+1. **HACS** → **Integrationen** → **⋮** → **Benutzerdefinierte Repositories**
 2. URL: `https://github.com/amlif/vorratsmanager-ha` · Kategorie: **Integration**
 3. **VorratsManager** suchen → **Installieren**
 4. **Home Assistant neu starten**
-5. ✅ Fertig – **VorratsManager** erscheint automatisch in der Seitenleiste
+5. ✅ **VorratsManager** erscheint automatisch in der Seitenleiste
 
 > Keine Änderung an `configuration.yaml` nötig.
 
@@ -45,42 +45,71 @@ Verwalte **Gefriertruhe, Kühlschrank und Vorratsraum** direkt in Home Assistant
 
 ## Manuelle Installation
 
-1. Den Ordner `custom_components/vorratsmanager/` in dein HA-Konfigurationsverzeichnis kopieren
+1. Ordner `custom_components/vorratsmanager/` in dein HA-Konfigurationsverzeichnis kopieren
 2. Home Assistant neu starten
+
+---
+
+## Einrichtung
+
+Nach der Installation und dem Neustart erscheint VorratsManager automatisch in der Seitenleiste. Es ist **keine weitere Konfiguration nötig** – die App läuft vollständig innerhalb von Home Assistant und benötigt keinen API-Token oder externe URL.
+
+### Optionale Einstellungen (⚙️ in der App)
+
+| Einstellung | Beschreibung |
+|---|---|
+| **Einkaufsliste (Entity ID)** | HA Todo-Entity für Bring! Sync (Standard: `todo.einkauf`) |
+| **MHD-Warnung** | Wie viele Tage vor Ablauf gewarnt werden soll |
+| **Küchengeräte** | KI schlägt nur Rezepte für gewählte Geräte vor |
+| **Diät-Filter** | KI berücksichtigt Ernährungspräferenzen |
+| **KI-Keys (optional)** | Groq- oder OpenRouter-Key für eigene KI-Modelle |
+| **Sprache** | DE · EN · RU · SQ |
+| **Dark Mode** | Dunkles Design |
 
 ---
 
 ## KI-Rezepte
 
-Die App nutzt eine Fallback-Kette – du brauchst **keinen** API-Key wenn du HA verwendest:
+Die App nutzt eine automatische Fallback-Kette – **kein API-Key nötig** wenn du die App als HA-Panel verwendest:
 
 | Backend | Kosten | Einrichtung |
 |---------|--------|-------------|
-| **HA ai_task** | Kostenlos | Automatisch im HA-Panel – nichts nötig |
-| **Groq** | Kostenlos | Key auf [console.groq.com](https://console.groq.com) → ⚙️ Einstellungen |
-| **OpenRouter** | Kostenlos (freie Modelle) | Key auf [openrouter.ai](https://openrouter.ai) → ⚙️ Einstellungen |
+| **HA ai_task** (Standard) | Kostenlos | Automatisch – nichts nötig |
+| **Groq** | Kostenlos | Key unter [console.groq.com](https://console.groq.com) → ⚙️ Einstellungen |
+| **OpenRouter** | Kostenlos (freie Modelle) | Key unter [openrouter.ai](https://openrouter.ai) → ⚙️ Einstellungen |
 
-In ⚙️ Einstellungen kannst du festlegen:
-- **Küchengeräte** – die KI schlägt nur passende Rezepte vor (Thermomix, Airfryer, Grill, Backofen, Herd)
-- **Diät-Filter** – z.B. vegetarisch, vegan, glutenfrei – die KI berücksichtigt das automatisch
-
-Die Portionsanzahl lässt sich direkt im Rezept-Tab anpassen (1–8 Personen). Bereits angezeigte Rezepte werden automatisch ausgeschlossen, damit die Vorschläge abwechslungsreich bleiben.
+**Wie es funktioniert:**
+- Zutaten auswählen (oder automatisch die 5 bald ablaufenden Produkte)
+- Portionsanzahl wählen (1–10 Personen)
+- „KI-Rezepte generieren" tippen
+- Die KI erstellt passende Rezepte für deine gewählten Küchengeräte
+- Rezepte können als Favoriten gespeichert, gedruckt oder auf Cookidoo gesucht werden
 
 ---
 
 ## Bring!-Integration
 
-1. Bring! App → Profil → API-Token kopieren
-2. ⚙️ Einstellungen → Bring! Token + Liste eintragen
-3. Erledigte Artikel werden auf Knopfdruck in den Vorrat importiert
+Die Integration nutzt die **HA Todo-Integration** – keine externe API nötig.
+
+**Voraussetzung:** Eine HA-Einkaufsliste muss als Todo-Entity eingerichtet sein (z.B. `todo.einkauf`).
+
+**Vorgehen:**
+1. Einkaufen gehen, Artikel in der Einkaufsliste als erledigt markieren
+2. Im VorratsManager → **Vorratsraum** → **🛒 Bring! Sync** tippen
+3. Lagerort für jeden Artikel wählen (Gefriertruhe / Kühlschrank / Vorratsraum)
+4. **Hinzufügen** → Artikel landen direkt im Vorrat
+
+Falls deine Einkaufsliste eine andere Entity ID hat (z.B. `todo.shopping`):
+⚙️ Einstellungen → **Einkaufsliste (Entity ID)** anpassen.
 
 ---
 
 ## Datenspeicherung
 
 - Vorratsdaten: `config/www/vorratsmanager/data.json`
-- Echtzeit-Sync via HA WebSocket (`vorratsmanager_updated` Event)
-- Kein Datenbankzugriff, kein Cloud-Dienst
+- Echtzeit-Sync via HA WebSocket (Event `vorratsmanager_updated`)
+- Kein Datenbankzugriff, kein Cloud-Dienst, kein Token nötig
+- Export/Import als JSON jederzeit möglich (⚙️ → Daten)
 
 ---
 
@@ -88,26 +117,42 @@ Die Portionsanzahl lässt sich direkt im Rezept-Tab anpassen (1–8 Personen). B
 
 - **Service:** `vorratsmanager.vorrat_save`
 - **Event:** `vorratsmanager_updated`
-- **Panel-URL:** `/local/vorratsmanager/panel.js`
-- **Anforderungen:** Home Assistant 2024.1+, HACS (für automatische Updates)
+- **Kommunikation:** panel.js ↔ iframe über `postMessage` (kein direkter API-Zugriff aus dem iframe)
+- **Anforderungen:** Home Assistant 2024.1+
 
 ---
 
 ## Changelog
 
+### v1.4.6
+- **Entfernt:** HA URL + Long-Lived Token aus den Einstellungen – nicht mehr nötig, da alle Service-Calls über panel.js laufen
+- **Neu:** Einkaufsliste (Entity ID) in Einstellungen konfigurierbar (Standard: `todo.einkauf`)
+- **Neu:** panel.js leitet alle HA Service-Calls durch (`vorrat-service` Message-Typ)
+- **Bugfix:** `renderExpiringForRecipes` – kaputtes Karten-Layout im Rezepte-Tab behoben
+- **Bugfix:** Bring!-Import Modal: Abbrechen-Button jetzt mehrsprachig
+- **Bugfix:** Statistik-Modal: „Abgelaufen"-Text jetzt in allen 4 Sprachen korrekt
+- **Bugfix:** „Alle Daten löschen" löscht jetzt auch gespeicherte Rezepte
+- **Bugfix:** Server-Sync von `0`/`false`/leerem Array korrekt übernommen
+- **Bugfix:** Entnommen-Modal: Min-Menge bei + / − Buttons konsistent (0.1)
+- **Bugfix:** Header-Icon wechselt jetzt beim Tab-Wechsel (❄️ / 🥬 / 🏺 / 👨‍🍳)
+
+### v1.4.5
+- Barcode-Scanner: Kamera-Bridge über panel.js für HA Companion App (iOS/Android)
+
+### v1.4.4
+- Barcode-Scanner: `allow="camera"` im iframe, ZXing-Fallback für iOS
+
 ### v1.4.3
-- Bugfix: Barcode-Scanner in HA Companion App (iOS/Android): Kamera-Bridge über panel.js – die Kamera wird in der Elternseite geöffnet, Frames per postMessage an den iframe weitergeleitet (WebView gibt Kamera-Berechtigung nicht direkt an iframes weiter)
+- Bugfix: Barcode-Scanner in HA Companion App
 
 ### v1.4.2
-- Barcode-Scanner: `allow="camera"` im iframe, ZXing als Fallback wenn BarcodeDetector API fehlt (iOS)
+- Barcode-Scanner Verbesserungen
 
 ### v1.4.1
-- Bugfix: Weißer Bildschirm / App komplett nicht benutzbar nach v1.4.0 Update (fehlende Anführungszeichen in `syncBring()` verursachten JavaScript-Syntaxfehler)
+- Bugfix: Weißer Bildschirm nach v1.4.0 Update
 
 ### v1.4.0
-- Bring!-Integration: Erledigte Artikel direkt in Vorrat importieren
-- Lagerort-Auswahl beim Bring!-Import
-- Diät-Filter für KI-Rezepte
+- Bring!-Integration, Diät-Filter, Lagerort-Auswahl beim Import
 
 ---
 
