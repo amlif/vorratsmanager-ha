@@ -2374,6 +2374,9 @@ let aiLoading = false;
 let aiError = '';
 let aiPortions = 4;
 let recentRecipeNames = []; // Verhindert Wiederholungen, gerätlokal
+let _shopLocation = 'freezer';
+let _shopAddedCount = 0;
+let _shopRecentItems = [];
 
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -4128,6 +4131,106 @@ function printRecipe(recipe) {
     <button class="print-btn" onclick="window.print()">🖨️ ${t('printRecipe') || 'Drucken'}</button>
   </body></html>`);
   w.document.close();
+}
+
+// ============================================================
+// EINKAUF-MODUS
+// ============================================================
+function openShopMode() {
+  _shopLocation = 'freezer';
+  _shopAddedCount = 0;
+  _shopRecentItems = [];
+
+  document.getElementById('shop-name').value = '';
+  document.getElementById('shop-qty').value = '1';
+  document.getElementById('shop-expiry').value = '';
+
+  const unitEl = document.getElementById('shop-unit');
+  const lang = db.settings.lang;
+  const units = UNITS[lang] || UNITS['de'];
+  unitEl.innerHTML = units.map(u => `<option value="${u}">${u}</option>`).join('');
+
+  setShopLocation('freezer');
+  _updateShopCounter();
+  document.getElementById('shop-done-btn').textContent = '✓ ' + t('shopDone');
+  document.getElementById('shop-add-btn').textContent = t('shopAddBtn');
+
+  renderShopRecent();
+  document.getElementById('shop-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('shop-name').focus(), 200);
+}
+
+function setShopLocation(loc) {
+  _shopLocation = loc;
+  document.querySelectorAll('.shop-loc-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.loc === loc);
+  });
+}
+
+function shopAddItem() {
+  const name = document.getElementById('shop-name').value.trim();
+  if (!name) {
+    document.getElementById('shop-name').focus();
+    return;
+  }
+  const cats = CATEGORIES[_shopLocation];
+  const item = {
+    id: generateId(),
+    name,
+    location: _shopLocation,
+    category: cats[cats.length - 1].id,
+    qty: parseFloat(document.getElementById('shop-qty').value) || 1,
+    unit: document.getElementById('shop-unit').value,
+    added: today(),
+    expiry: document.getElementById('shop-expiry').value || null,
+    notes: '',
+  };
+
+  db.items.unshift(item);
+  _shopAddedCount++;
+  _shopRecentItems.unshift(item.id);
+  if (_shopRecentItems.length > 5) _shopRecentItems.pop();
+
+  saveDb(false); // kein Server-Sync bis Fertig
+
+  document.getElementById('shop-name').value = '';
+  document.getElementById('shop-qty').value = '1';
+  document.getElementById('shop-expiry').value = '';
+  document.getElementById('shop-name').focus();
+
+  _updateShopCounter();
+  renderShopRecent();
+}
+
+function _updateShopCounter() {
+  document.getElementById('shop-counter').textContent = t('shopAdded', _shopAddedCount);
+}
+
+function renderShopRecent() {
+  const el = document.getElementById('shop-recent-list');
+  if (_shopRecentItems.length === 0) {
+    el.innerHTML = `<div style="font-size:13px;color:var(--text-light);padding:8px 0">${t('shopEmpty')}</div>`;
+    return;
+  }
+  const locIcons = { freezer: '🧊', fridge: '🥬', pantry: '🏺' };
+  el.innerHTML = _shopRecentItems.map(id => {
+    const item = db.items.find(i => i.id === id);
+    if (!item) return '';
+    return `<div class="shop-recent-item">
+      <span style="font-size:20px">${locIcons[item.location] || '📦'}</span>
+      <span style="flex:1;font-weight:500">${escHtml(item.name)}</span>
+      <span style="color:var(--text-muted);font-size:13px">${item.qty} ${escHtml(item.unit)}</span>
+    </div>`;
+  }).join('');
+}
+
+function closeShopMode() {
+  document.getElementById('shop-overlay').classList.remove('open');
+  if (_shopAddedCount > 0) {
+    saveDb();
+    renderAll();
+    showToast(t('shopAdded', _shopAddedCount));
+  }
 }
 
 async function init() {
