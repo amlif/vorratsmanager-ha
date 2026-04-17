@@ -2780,14 +2780,6 @@ function renderDashboard() {
     .filter(i => { const d = daysUntilExpiry(i.expiry); return d !== null && d <= 7; })
     .sort((a, b) => daysUntilExpiry(a.expiry) - daysUntilExpiry(b.expiry));
 
-  const scoredRecipes = db.savedRecipes.map((r, idx) => {
-    const ingredients = Array.isArray(r.ingredients) ? r.ingredients : [];
-    const score = expiring.filter(item =>
-      ingredients.some(ing => _matchIngredient(String(ing), item.name))
-    ).length;
-    return { r, idx, score };
-  }).sort((a, b) => b.score - a.score).slice(0, 3);
-
   let html = '';
 
   if (expiring.length > 0) {
@@ -2815,27 +2807,8 @@ function renderDashboard() {
     </div>`;
   }
 
-  html += `<div class="recipe-info-card">
-    <div class="recipe-info-title">👨‍🍳 ${t('homeCookToday')}</div>`;
-  if (scoredRecipes.length === 0) {
-    html += `<p class="recipe-tip" style="margin-top:8px">${t('homeNoFavorites')}</p>`;
-  } else {
-    html += `<div style="display:flex;flex-direction:column;gap:0;margin-top:10px">
-      ${scoredRecipes.map(({ r, idx }) => {
-        const appliance = r.appliance || 'Herd';
-        const meta = APPLIANCE_META[appliance] || APPLIANCE_META['Herd'];
-        return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
-          <span style="font-size:24px">${meta.icon}</span>
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(r.name || '')}</div>
-            <div style="font-size:12px;color:var(--text-muted);margin-top:1px">${appliance}${r.time ? ' · ⏱ ' + escHtml(r.time) : ''}</div>
-          </div>
-          <button onclick="openCookModal(db.savedRecipes[${idx}])" style="background:linear-gradient(135deg,#6366F1,#8B5CF6);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">🍳 ${t('cookBtn')}</button>
-        </div>`;
-      }).join('')}
-    </div>`;
-  }
-  html += `</div>`;
+  // Block 2: Alle gespeicherten Favoriten, aufklappbar, mit 🍳-Button
+  html += renderSavedRecipes('ds-');
 
   html += `<button onclick="openShopMode()" style="width:100%;padding:18px;background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;border:none;border-radius:var(--radius);font-size:17px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 4px 12px rgba(245,158,11,0.35)">
     🛒 ${t('homeShopBtn')}
@@ -3068,6 +3041,11 @@ function toggleAICard(i) {
 
 function toggleSavedCard(i) {
   const card = document.getElementById(`savedcard-${i}`);
+  if (card) card.classList.toggle('expanded');
+}
+
+function toggleSavedCardById(id) {
+  const card = document.getElementById(id);
   if (card) card.classList.toggle('expanded');
 }
 
@@ -3327,7 +3305,7 @@ function removeSavedRecipe(idx) {
   renderRecipes();
 }
 
-function renderSavedRecipes() {
+function renderSavedRecipes(idPrefix = '') {
   if (db.savedRecipes.length === 0) {
     return `<div class="recipe-info-card">
       <div class="recipe-info-title">${t('savedRecipesTitle')}</div>
@@ -3347,6 +3325,7 @@ function renderSavedRecipes() {
     const expanded = i === 0 ? ' expanded' : '';
     const ingredients = Array.isArray(r.ingredients) ? r.ingredients : [];
     const steps = Array.isArray(r.steps) ? r.steps : [];
+    const cardId = `${idPrefix}savedcard-${i}`;
 
     const ingredientsLabels = { de: 'Zutaten', en: 'Ingredients', ru: 'Ингредиенты', sq: 'Përbërësit' };
     const stepsLabels = { de: `Zubereitung (${appliance})`, en: `Preparation (${appliance})`, ru: `Приготовление (${appliance})`, sq: `Përgatitja (${appliance})` };
@@ -3369,8 +3348,8 @@ function renderSavedRecipes() {
         </div>`).join('')}
       </div>` : '';
 
-    return `<div class="saved-recipe-card${expanded}" id="savedcard-${i}" style="border-left-color:${meta.color}">
-      <div class="ai-recipe-header" onclick="toggleSavedCard(${i})">
+    return `<div class="saved-recipe-card${expanded}" id="${cardId}" style="border-left-color:${meta.color}">
+      <div class="ai-recipe-header" onclick="toggleSavedCardById('${cardId}')">
         <div class="ai-recipe-title-block">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
             <span style="font-size:22px">${meta.icon}</span>
