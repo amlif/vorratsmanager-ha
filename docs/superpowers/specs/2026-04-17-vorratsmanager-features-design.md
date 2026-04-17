@@ -106,8 +106,8 @@ let _shopMode = {
 │ Rezept: [Name]                      │
 ├─────────────────────────────────────┤
 │ ✅ Im Vorrat vorhanden:             │
-│ ☑ Hähnchenbrust  1.2kg  ❄️         │
-│ ☑ Zwiebel        3 Stück 🏺        │
+│ ☑ Hähnchenbrust ❄️  [−] 0.8 [+] kg │
+│ ☑ Zwiebel       🏺  [−] 2   [+] Stk│
 │                                     │
 │ ❌ Nicht im Vorrat:                 │
 │ • Sahne 200ml        [+Einkauf]     │
@@ -132,7 +132,10 @@ function matchIngredientToItems(ingredientStr, items) {
 - Kein KI-Match nötig
 
 ### Entnehmen-Aktion
-- Alle angehakten Items: `qty = 0` → Item wird aus `db.items` entfernt
+- Jedes angehakte Item zeigt `[−] Menge [+]` Stepper (vorausgefüllt mit der vollen Lagermenge als Maximum)
+- Default: volle Menge (kann reduziert werden)
+- Step-Logik: identisch zum bestehenden `adjustTaken()` (qty ≤ 5 → Step 0.5, sonst 1)
+- Auf Bestätigung: `item.qty -= entnommene_menge`. Wenn `qty ≤ 0` → Item gelöscht
 - „+ Einkaufsliste"-Button: ruft `callServiceViaPanel('todo', 'add_item', ...)` auf (nur im HA-Panel)
 - Nach Bestätigung: `saveDb()`, Modal schließen, `renderAll()`, Toast
 
