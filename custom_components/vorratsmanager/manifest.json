@@ -1,7 +1,7 @@
 {
   "domain": "vorratsmanager",
   "name": "VorratsManager",
-  "version": "1.4.6",
+  "version": "1.5.0",
   "documentation": "https://github.com/amlif/vorratsmanager-ha",
   "issue_tracker": "https://github.com/amlif/vorratsmanager-ha/issues",
   "codeowners": ["@amlif"],

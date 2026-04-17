@@ -124,6 +124,13 @@ Falls deine Einkaufsliste eine andere Entity ID hat (z.B. `todo.shopping`):
 
 ## Changelog
 
+### v1.5.0
+- **Neu:** Dashboard-Tab (🏠 Home) – zeigt ablaufende Items und alle gespeicherten Favoriten aufklappbar
+- **Neu:** Einkauf-Schnellmodus – Vollbild-Overlay zum schnellen Einlagern mehrerer Items ohne Modal-Schließen
+- **Neu:** Rezept-Kochen-Flow – 🍳-Button öffnet Zutaten-Entnehmen-Modal mit Stepper (Teilentnahme)
+- **Neu:** Barcode-Scanner funktioniert jetzt in der HA Mobile App (html5-qrcode Fallback für iOS/WebView)
+- **Fix:** Barcode-Scanner schreibt korrekt ins Feld (Shop-Modus oder Add-Modal)
+
 ### v1.4.6
 - **Entfernt:** HA URL + Long-Lived Token aus den Einstellungen – nicht mehr nötig, da alle Service-Calls über panel.js laufen
 - **Neu:** Einkaufsliste (Entity ID) in Einstellungen konfigurierbar (Standard: `todo.einkauf`)
