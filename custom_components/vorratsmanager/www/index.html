@@ -1554,6 +1554,7 @@
 <div id="barcode-overlay">
   <div class="barcode-box">
     <video id="barcode-video" autoplay playsinline muted></video>
+    <div id="html5-qr-container" style="display:none;width:100%;max-width:400px"></div>
     <div class="barcode-corners"></div>
     <div class="barcode-scanline"></div>
     <div id="barcode-status">Barcode in Kamerabereich halten…</div>
@@ -3922,44 +3923,102 @@ async function autoCheckBring() {
 let _barcodeStream = null;
 let _barcodeInterval = null;
 
+let _html5QrCode = null;
+let _barcodeScanTarget = 'item-name'; // 'item-name' oder 'shop-name'
+
 async function startBarcodeScanner() {
-  if (!('BarcodeDetector' in window)) {
-    showToast(t('barcodeNotSupported'));
+  // Zielfeld je nach Kontext
+  const shopOpen = document.getElementById('shop-overlay').classList.contains('open');
+  _barcodeScanTarget = shopOpen ? 'shop-name' : 'item-name';
+
+  document.getElementById('barcode-status').textContent = t('barcodeScanning');
+  document.getElementById('barcode-overlay').style.display = 'flex';
+
+  if ('BarcodeDetector' in window) {
+    // Nativer Scanner (Chrome/Edge/Android Chrome)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+      _barcodeStream = stream;
+      const video = document.getElementById('barcode-video');
+      video.style.display = 'block';
+      document.getElementById('html5-qr-container').style.display = 'none';
+      video.srcObject = stream;
+
+      const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'qr_code'] });
+      _barcodeInterval = setInterval(async () => {
+        if (video.readyState < 2) return;
+        try {
+          const codes = await detector.detect(video);
+          if (codes.length > 0) {
+            stopBarcodeScanner();
+            await lookupBarcode(codes[0].rawValue);
+          }
+        } catch(e) {}
+      }, 250);
+    } catch(e) {
+      document.getElementById('barcode-overlay').style.display = 'none';
+      showToast('Kamera-Zugriff verweigert');
+    }
     return;
   }
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
-    _barcodeStream = stream;
-    const video = document.getElementById('barcode-video');
-    video.srcObject = stream;
-    document.getElementById('barcode-overlay').style.display = 'flex';
-    document.getElementById('barcode-status').textContent = t('barcodeScanning');
 
-    const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'qr_code'] });
-    _barcodeInterval = setInterval(async () => {
-      if (video.readyState < 2) return;
-      try {
-        const codes = await detector.detect(video);
-        if (codes.length > 0) {
-          stopBarcodeScanner();
-          await lookupBarcode(codes[0].rawValue);
-        }
-      } catch(e) {}
-    }, 250);
+  // Fallback: html5-qrcode (funktioniert in HA App / iOS WebView)
+  if (!window.Html5Qrcode) {
+    try {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+        s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    } catch(e) {
+      document.getElementById('barcode-overlay').style.display = 'none';
+      showToast(t('barcodeNotSupported'));
+      return;
+    }
+  }
+
+  const video = document.getElementById('barcode-video');
+  video.style.display = 'none';
+  const container = document.getElementById('html5-qr-container');
+  container.style.display = 'block';
+  container.innerHTML = '';
+
+  if (_html5QrCode) {
+    try { await _html5QrCode.stop(); } catch(e) {}
+    _html5QrCode = null;
+  }
+
+  _html5QrCode = new Html5Qrcode('html5-qr-container');
+  try {
+    await _html5QrCode.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 250, height: 120 } },
+      async (decodedText) => {
+        await stopBarcodeScanner();
+        await lookupBarcode(decodedText);
+      },
+      () => {}
+    );
   } catch(e) {
+    document.getElementById('barcode-overlay').style.display = 'none';
     showToast('Kamera-Zugriff verweigert');
   }
 }
 
-function stopBarcodeScanner() {
+async function stopBarcodeScanner() {
   clearInterval(_barcodeInterval);
   _barcodeInterval = null;
   if (_barcodeStream) { _barcodeStream.getTracks().forEach(t => t.stop()); _barcodeStream = null; }
+  if (_html5QrCode) {
+    try { await _html5QrCode.stop(); } catch(e) {}
+    _html5QrCode = null;
+  }
   document.getElementById('barcode-overlay').style.display = 'none';
 }
 
 async function lookupBarcode(ean) {
-  const nameEl = document.getElementById('item-name');
+  const nameEl = document.getElementById(_barcodeScanTarget);
   nameEl.value = '⏳ Suche…';
   try {
     const r = await fetch(`https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(ean)}.json`);
