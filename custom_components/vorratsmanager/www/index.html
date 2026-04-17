@@ -2584,6 +2584,7 @@ async function checkExpiryAndNotify() {
 // RENDER
 // ============================================================
 function renderAll() {
+  renderDashboard();
   renderFilters('freezer');
   renderFilters('fridge');
   renderFilters('pantry');
@@ -2756,6 +2757,85 @@ function updateTabBadges() {
       if (badge) badge.remove();
     }
   });
+}
+
+function _matchIngredient(ingredientStr, itemName) {
+  const ing = String(ingredientStr).toLowerCase();
+  const name = itemName.toLowerCase();
+  return ing.includes(name) || name.includes(ing.split(/[\s,]+/)[0]);
+}
+
+function renderDashboard() {
+  const el = document.getElementById('dashboard-content');
+  if (!el) return;
+  const lang = db.settings.lang;
+
+  const expiring = db.items
+    .filter(i => { const d = daysUntilExpiry(i.expiry); return d !== null && d <= 7; })
+    .sort((a, b) => daysUntilExpiry(a.expiry) - daysUntilExpiry(b.expiry));
+
+  const scoredRecipes = db.savedRecipes.map((r, idx) => {
+    const ingredients = Array.isArray(r.ingredients) ? r.ingredients : [];
+    const score = expiring.filter(item =>
+      ingredients.some(ing => _matchIngredient(String(ing), item.name))
+    ).length;
+    return { r, idx, score };
+  }).sort((a, b) => b.score - a.score).slice(0, 3);
+
+  let html = '';
+
+  if (expiring.length > 0) {
+    html += `<div class="recipe-info-card">
+      <div class="recipe-info-title">🔴 ${t('homeExpiring')}</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+        ${expiring.map(item => {
+          const cat = getCatInfo(item.location, item.category);
+          const days = daysUntilExpiry(item.expiry);
+          const badge = expiryBadge(days, lang);
+          return `<div class="item-card expiry-${expiryClass(days)}" style="cursor:pointer" onclick="openEditModal('${item.id}')">
+            <div class="item-card-main" style="min-height:52px">
+              <div class="item-emoji" style="width:40px;height:40px;font-size:22px">${cat.emoji}</div>
+              <div class="item-body">
+                <div class="item-name">${escHtml(item.name)}</div>
+                <div class="item-meta"><span>${locLabel(item.location)}</span><span>·</span><span>${item.qty} ${escHtml(item.unit)}</span></div>
+              </div>
+              <div class="item-right">
+                <span class="expiry-badge ${badge.cls}">${badge.text}</span>
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+
+  html += `<div class="recipe-info-card">
+    <div class="recipe-info-title">👨‍🍳 ${t('homeCookToday')}</div>`;
+  if (scoredRecipes.length === 0) {
+    html += `<p class="recipe-tip" style="margin-top:8px">${t('homeNoFavorites')}</p>`;
+  } else {
+    html += `<div style="display:flex;flex-direction:column;gap:0;margin-top:10px">
+      ${scoredRecipes.map(({ r, idx }) => {
+        const appliance = r.appliance || 'Herd';
+        const meta = APPLIANCE_META[appliance] || APPLIANCE_META['Herd'];
+        return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:24px">${meta.icon}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(r.name || '')}</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:1px">${appliance}${r.time ? ' · ⏱ ' + escHtml(r.time) : ''}</div>
+          </div>
+          <button onclick="openCookModal(db.savedRecipes[${idx}])" style="background:linear-gradient(135deg,#6366F1,#8B5CF6);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">🍳 ${t('cookBtn')}</button>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+  html += `</div>`;
+
+  html += `<button onclick="openShopMode()" style="width:100%;padding:18px;background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;border:none;border-radius:var(--radius);font-size:17px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 4px 12px rgba(245,158,11,0.35)">
+    🛒 ${t('homeShopBtn')}
+  </button>`;
+
+  el.innerHTML = html;
 }
 
 function renderRecipes() {
@@ -3325,16 +3405,14 @@ function switchTab(tab) {
   document.getElementById(`tab-${tab}`)?.classList.add('active');
   document.querySelector(`.tab-btn[data-tab="${tab}"]`)?.classList.add('active');
 
-  // Update FAB visibility
   const fab = document.getElementById('fab-btn');
-  fab.style.display = (tab === 'recipes') ? 'none' : 'flex';
+  fab.style.display = (tab === 'recipes' || tab === 'home') ? 'none' : 'flex';
 
-  // Update header icon + title
-  const headerIcons = { freezer: '❄️', fridge: '🥬', pantry: '🏺', recipes: '👨‍🍳' };
-  document.getElementById('header-icon').textContent = headerIcons[tab] || '🏺';
+  const headerIcons = { home: '🏠', freezer: '❄️', fridge: '🥬', pantry: '🏺', recipes: '👨‍🍳' };
+  document.getElementById('header-icon').textContent = headerIcons[tab] || '🏠';
 
-  if (tab === 'pantry') renderList('pantry');
-
+  if (tab === 'home')    renderDashboard();
+  if (tab === 'pantry')  renderList('pantry');
   if (tab === 'recipes') renderRecipes();
 }
 
