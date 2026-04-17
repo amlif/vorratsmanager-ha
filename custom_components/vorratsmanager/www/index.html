@@ -2377,6 +2377,9 @@ let recentRecipeNames = []; // Verhindert Wiederholungen, gerätlokal
 let _shopLocation = 'freezer';
 let _shopAddedCount = 0;
 let _shopRecentItems = [];
+let _cookRecipe = null;
+let _cookTakeAmounts = {};
+let _cookChecked = {};
 
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -3023,6 +3026,7 @@ function renderAIRecipeCard(r, i) {
       </div>
       <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
         <button class="btn-save-recipe${db.savedRecipes.some(s => s.name === r.name) ? ' saved' : ''}" title="${t('saveRecipe')}" onclick="event.stopPropagation();saveAIRecipe(${i})">${t('saveRecipe')}</button>
+        <button style="background:linear-gradient(135deg,#6366F1,#8B5CF6);color:#fff;border:none;border-radius:8px;padding:4px 10px;font-size:13px;font-weight:600;cursor:pointer;flex-shrink:0" title="${t('cookBtn')}" onclick="event.stopPropagation();openCookModal(aiRecipes[${i}])">🍳</button>
         <button class="btn-print" title="${t('printRecipe')}" onclick="event.stopPropagation();printRecipe(aiRecipes[${i}])">🖨️</button>
         <span class="ai-recipe-expand">⌄</span>
       </div>
@@ -3381,6 +3385,7 @@ function renderSavedRecipes() {
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
           <button class="btn-save-recipe saved" title="${t('removeSaved')}" onclick="event.stopPropagation();removeSavedRecipe(${i})">⭐</button>
+          <button style="background:linear-gradient(135deg,#6366F1,#8B5CF6);color:#fff;border:none;border-radius:8px;padding:4px 10px;font-size:13px;font-weight:600;cursor:pointer;flex-shrink:0" title="${t('cookBtn')}" onclick="event.stopPropagation();openCookModal(db.savedRecipes[${i}])">🍳</button>
           <button class="btn-print" title="${t('printRecipe')}" onclick="event.stopPropagation();printRecipe(db.savedRecipes[${i}])">🖨️</button>
           <span class="ai-recipe-expand">⌄</span>
         </div>
@@ -4231,6 +4236,132 @@ function closeShopMode() {
     renderAll();
     showToast(t('shopAdded', _shopAddedCount));
   }
+}
+
+// ============================================================
+// REZEPT-KOCHEN-FLOW
+// ============================================================
+function openCookModal(recipe) {
+  if (!recipe) return;
+  _cookRecipe = recipe;
+  _cookTakeAmounts = {};
+  _cookChecked = {};
+
+  const ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
+  const matched = [];
+  const unmatched = [];
+
+  ingredients.forEach(ing => {
+    const ingStr = typeof ing === 'string' ? ing : (ing.name || String(ing));
+    const found = db.items.filter(item => _matchIngredient(ingStr, item.name));
+    if (found.length > 0) {
+      found.forEach(item => {
+        if (!matched.find(m => m.item.id === item.id)) {
+          matched.push({ item, ingStr });
+        }
+      });
+    } else {
+      unmatched.push(ingStr);
+    }
+  });
+
+  matched.forEach(({ item }) => {
+    _cookChecked[item.id] = true;
+    _cookTakeAmounts[item.id] = item.qty;
+  });
+
+  document.getElementById('cook-modal-title').textContent = '🍳 ' + t('cookTitle');
+  document.getElementById('cook-recipe-name').textContent = recipe.name || '';
+  document.getElementById('cook-cancel-btn').textContent = t('btnCancel');
+
+  _renderCookModal(matched, unmatched);
+  document.getElementById('cook-overlay').classList.add('open');
+}
+
+function _renderCookModal(matched, unmatched) {
+  const checkedCount = matched.filter(({ item }) => _cookChecked[item.id]).length;
+  document.getElementById('cook-confirm-btn').textContent = t('cookConfirm', checkedCount);
+
+  let html = '';
+  if (matched.length > 0) {
+    html += `<div class="cook-section-title">✅ ${t('cookInStock')}</div>`;
+    html += matched.map(({ item }) => {
+      const checked = _cookChecked[item.id];
+      const amount = _cookTakeAmounts[item.id];
+      const step = item.qty <= 5 ? 0.5 : 1;
+      const locIcons = { freezer: '🧊', fridge: '🥬', pantry: '🏺' };
+      return `<div class="cook-item-row" id="crow-${item.id}" style="opacity:${checked ? 1 : 0.45}">
+        <input type="checkbox" style="width:18px;height:18px;accent-color:var(--primary);flex-shrink:0;cursor:pointer"
+          ${checked ? 'checked' : ''} onchange="toggleCookItem('${item.id}',this.checked)">
+        <div style="flex:1;min-width:0">
+          <div class="cook-item-name">${escHtml(item.name)}</div>
+          <div class="cook-item-meta">${locIcons[item.location] || ''} ${item.qty} ${escHtml(item.unit)}</div>
+        </div>
+        <div class="cook-stepper">
+          <button class="cook-step-btn" onclick="adjustCookItem('${item.id}',-${step},${item.qty})">−</button>
+          <span class="cook-qty-val" id="cqty-${item.id}">${amount}</span>
+          <button class="cook-step-btn" onclick="adjustCookItem('${item.id}',${step},${item.qty})">+</button>
+          <span style="font-size:11px;color:var(--text-muted);min-width:24px">${escHtml(item.unit)}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  if (unmatched.length > 0) {
+    html += `<div class="cook-section-title" style="margin-top:${matched.length > 0 ? '16' : '0'}px">❌ ${t('cookMissing')}</div>`;
+    html += unmatched.map(ing => `<div class="cook-missing-item">
+      <span>${escHtml(String(ing))}</span>
+      ${_inHaPanel ? `<button class="cook-shop-btn" onclick="addIngredientToShop('${escAttr(String(ing))}')">${t('cookAddShop')}</button>` : ''}
+    </div>`).join('');
+  }
+
+  if (matched.length === 0 && unmatched.length === 0) {
+    html = `<p style="color:var(--text-muted);text-align:center;padding:24px;font-size:14px">Keine Zutaten gefunden.</p>`;
+  }
+
+  document.getElementById('cook-modal-body').innerHTML = html;
+}
+
+function toggleCookItem(itemId, checked) {
+  _cookChecked[itemId] = checked;
+  const row = document.getElementById(`crow-${itemId}`);
+  if (row) row.style.opacity = checked ? '1' : '0.45';
+  const checkedCount = Object.values(_cookChecked).filter(Boolean).length;
+  document.getElementById('cook-confirm-btn').textContent = t('cookConfirm', checkedCount);
+}
+
+function adjustCookItem(itemId, delta, maxQty) {
+  const current = _cookTakeAmounts[itemId] ?? maxQty;
+  const step = maxQty <= 5 ? 0.5 : 1;
+  const newVal = Math.max(0.1, Math.min(maxQty, Math.round((current + delta) * 10) / 10));
+  _cookTakeAmounts[itemId] = newVal;
+  const el = document.getElementById(`cqty-${itemId}`);
+  if (el) el.textContent = newVal;
+}
+
+async function addIngredientToShop(name) {
+  if (!_inHaPanel) return;
+  try {
+    await callServiceViaPanel('todo', 'add_item', { entity_id: db.settings.todoEntity || 'todo.einkauf', item: name });
+    showToast('🛒 ' + name + ' → Einkaufsliste ✓');
+  } catch(e) { showToast('🛒 Fehler'); }
+}
+
+function confirmCook() {
+  let removed = 0;
+  Object.entries(_cookChecked).forEach(([itemId, checked]) => {
+    if (!checked) return;
+    const item = db.items.find(i => i.id === itemId);
+    if (!item) return;
+    const take = _cookTakeAmounts[itemId] ?? item.qty;
+    item.qty = Math.max(0, Math.round((item.qty - take) * 10) / 10);
+    if (item.qty <= 0) db.items = db.items.filter(i => i.id !== itemId);
+    removed++;
+  });
+  saveDb();
+  closeAllModals();
+  renderAll();
+  showToast(t('cookDone', removed));
 }
 
 async function init() {
