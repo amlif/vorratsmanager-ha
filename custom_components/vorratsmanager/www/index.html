@@ -431,8 +431,6 @@
       z-index: 20;
     }
     .fab:active { transform: scale(0.95); }
-    #tab-freezer:not(.active) ~ .fab,
-    #tab-fridge:not(.active) ~ .fab { display: none; }
 
     /* ===== RECIPES TAB ===== */
     .recipe-content {
@@ -2104,9 +2102,9 @@ function loadDb() {
   } catch(e) {}
 }
 
-function saveDb() {
+function saveDb(sync = true) {
   localStorage.setItem('fridgeapp_v1', JSON.stringify(db));
-  saveToServer(); // Echtzeit-Sync an alle Geräte
+  if (sync) saveToServer(); // Echtzeit-Sync an alle Geräte
 }
 
 // ============================================================
@@ -2192,7 +2190,9 @@ window.addEventListener('message', async (e) => {
 function daysUntilExpiry(dateStr) {
   if (!dateStr) return null;
   const today = new Date(); today.setHours(0,0,0,0);
-  const exp = new Date(dateStr); exp.setHours(0,0,0,0);
+  // Parse as LOCAL date (YYYY-MM-DD → avoid UTC off-by-one in non-UTC timezones)
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const exp = new Date(y, m - 1, d);
   return Math.floor((exp - today) / 86400000);
 }
 
@@ -2219,7 +2219,9 @@ function getCatInfo(location, catId) {
 
 function formatDate(dateStr) {
   if (!dateStr) return '';
-  const d = new Date(dateStr);
+  // Parse as LOCAL date (avoid UTC off-by-one in non-UTC timezones)
+  const [y, m, day] = dateStr.split('-').map(Number);
+  const d = new Date(y, m - 1, day);
   const localeMap = { de: 'de-DE', en: 'en-GB', ru: 'ru-RU', sq: 'sq-AL' };
   const locale = localeMap[db.settings.lang] || 'de-DE';
   return d.toLocaleDateString(locale, { day:'2-digit', month:'2-digit', year:'2-digit' });
@@ -2341,7 +2343,7 @@ function renderFilters(loc) {
 
 function setFilter(loc, catId) {
   db.settings[filterKey(loc)] = catId;
-  saveDb();
+  saveDb(false); // filter is local UI state — no server sync needed
   renderFilters(loc);
   renderList(loc);
 }
@@ -3262,7 +3264,8 @@ function renderBringImportModal(lang, locOptions) {
 async function syncBring() {
   const lang = db.settings.lang;
   if (!_inHaPanel) {
-    showToast(lang === 'ru' ? 'Nur im HA-Panel verfügbar' : 'Nur im HA-Panel verfügbar');
+    const msgs = { de: 'Nur im HA-Panel verfügbar', en: 'Only available in HA panel', ru: 'Только в панели HA', sq: 'Vetëm në panelin HA' };
+    showToast(msgs[lang] || msgs.de);
     return;
   }
   showToast('⏳ Lade Bring!…');
@@ -3306,7 +3309,7 @@ async function confirmBringImport() {
       qty: 1,
       unit: db.settings.lang === 'ru' ? 'шт' : db.settings.lang === 'sq' ? 'copë' : 'Stück',
       added: today(),
-      expiry: '',
+      expiry: null,
       notes: ''
     });
     added++;
@@ -3346,14 +3349,18 @@ function applyDarkMode() {
   if (toggle) {
     toggle.style.background = on ? '#3B82F6' : 'var(--border)';
     if (knob) knob.style.left = on ? '22px' : '2px';
-    if (label) label.textContent = on ? 'Ein' : 'Aus';
+    if (label) {
+      const darkLabels = { de: ['Aus', 'Ein'], en: ['Off', 'On'], ru: ['Выкл', 'Вкл'], sq: ['Jo', 'Po'] };
+      const [labelOff, labelOn] = darkLabels[db.settings.lang] || darkLabels.de;
+      label.textContent = on ? labelOn : labelOff;
+    }
     if (icon) icon.textContent = on ? '☀️' : '🌙';
   }
 }
 
 function toggleDarkMode() {
   db.settings.darkMode = !db.settings.darkMode;
-  saveDb();
+  saveDb(false); // darkMode is device-local — server sync happens on settings save
   applyDarkMode();
 }
 
@@ -3444,7 +3451,7 @@ function saveSettings() {
 // ============================================================
 function setLang(lang) {
   db.settings.lang = lang;
-  saveDb();
+  saveDb(false); // lang is device-local — server sync happens on settings save
   renderAll();
 }
 
@@ -3712,6 +3719,7 @@ function printRecipe(recipe) {
   const stepsLabel = { de:'Zubereitung', en:'Preparation', ru:'Приготовление', sq:'Përgatitja' }[lang] || 'Zubereitung';
 
   const w = window.open('', '_blank', 'width=700,height=900');
+  if (!w) { showToast('🖨️ Popup blockiert – Browser-Einstellungen prüfen'); return; }
   w.document.write(`<!DOCTYPE html><html><head>
     <meta charset="UTF-8"><title>${recipe.name || 'Rezept'}</title>
     <style>
