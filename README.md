@@ -22,6 +22,8 @@ Verwalte **Gefriertruhe, Kühlschrank und Vorratsraum** direkt in Home Assistant
 | 🖨️ Rezept drucken | Druckfreundliche Ansicht |
 | 🛒 Bring!-Integration | Erledigte Einkäufe direkt in den Vorrat importieren |
 | 📷 Barcode-Scanner | Produkt scannen → automatisch befüllen (Open Food Facts) |
+| ⚠️ Mindestbestand | Pro Artikel konfigurierbar – bei Unterschreitung automatisch zu Bring! |
+| 🚫 Non-Food Filter | Nicht-Lebensmittel aus der Rezepte-Zutatenliste ausblenden |
 | 📊 Statistiken | Übersicht über Lagermengen und Ablaufdaten |
 | 🔄 Echtzeit-Sync | Alle Geräte im Haushalt synchron (WebSocket) |
 | 🌐 4 Sprachen | Deutsch · English · Русский · Shqip |
@@ -123,6 +125,12 @@ Falls deine Einkaufsliste eine andere Entity ID hat (z.B. `todo.shopping`):
 ---
 
 ## Changelog
+
+### v1.6.0
+- **Neu:** Mindestbestand pro Artikel – wird Bestand auf/unter den Mindestbestand gesenkt, wird der Artikel automatisch zu Bring! hinzugefügt (⚠️ Mindestbestand → 🛒 Bring! ✓)
+- **Neu:** „Kein Lebensmittel"-Checkbox pro Artikel – Non-Food Artikel (Zahnpasta, Waschmittel etc.) werden aus der Rezepte-Zutatenliste ausgeblendet
+- **Neu:** Toggle-Button im Rezepte-Tab: `🚫 +N anzeigen` zeigt ausgeblendete Non-Food Artikel bei Bedarf an
+- **Neu:** KI-Rezept-Generierung schließt Non-Food Artikel automatisch aus
 
 ### v1.5.0
 - **Neu:** Dashboard-Tab (🏠 Home) – zeigt ablaufende Items und alle gespeicherten Favoriten aufklappbar

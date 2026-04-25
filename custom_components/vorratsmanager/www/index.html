@@ -1637,6 +1637,19 @@
         <label class="form-label" data-key="labelNotes">Notizen</label>
         <textarea class="form-textarea" id="item-notes" placeholder="z.B. selbst eingefroren, mariniert…"></textarea>
       </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" title="Wenn Bestand auf oder unter diesen Wert fällt, wird der Artikel automatisch zu Bring! hinzugefügt">⚠️ Mindestbestand</label>
+          <input class="form-input" id="item-minstock" type="number" min="0" step="0.1" value="0" placeholder="0 = deaktiviert">
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:4px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:var(--text-muted)">
+            <input type="checkbox" id="item-nonfood" style="width:18px;height:18px;cursor:pointer;accent-color:var(--primary)">
+            🚫 Kein Lebensmittel
+          </label>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeAllModals()" data-key="btnCancel">Abbrechen</button>
@@ -1783,7 +1796,7 @@
       </div>
 
       <div style="text-align:center;margin-top:8px;font-size:12px;color:var(--text-light)">
-        VorratsManager v1.5.0 · Home Assistant Erweiterung
+        VorratsManager v1.6.0 · Home Assistant Erweiterung
       </div>
     </div>
     <div class="modal-footer">
@@ -2821,9 +2834,10 @@ function renderDashboard() {
 function renderRecipes() {
   const el = document.getElementById('recipe-content');
   const lang = db.settings.lang;
-  const allItems = db.items;
+  const showNonFood = db.settings.showNonFoodIngredients === true;
+  const foodItems = db.items.filter(i => showNonFood || !i.nonFood);
 
-  if (allItems.length === 0) {
+  if (db.items.length === 0) {
     el.innerHTML = `<div class="recipe-info-card">
       <div class="recipe-info-title">👨‍🍳 ${t('recipeTitle')}</div>
       <p class="recipe-tip">${t('recipeNoItems')}</p>
@@ -2831,13 +2845,16 @@ function renderRecipes() {
     return;
   }
 
-  const chips = allItems.map(item => {
+  const nonFoodCount = db.items.filter(i => i.nonFood).length;
+  const chips = foodItems.map(item => {
     const cat = getCatInfo(item.location, item.category);
     const sel = selectedIngredients.has(item.id);
     return `<div class="ingredient-chip ${sel ? 'selected' : ''}" onclick="toggleIngredient('${item.id}')">
       ${cat.emoji} ${escHtml(item.name)}
     </div>`;
   }).join('');
+
+  const allItems = foodItems;
 
   const hasSelection = selectedIngredients.size > 0;
   // Clean ingredient names for Cookidoo search: strip quantities, units, parentheses
@@ -2910,9 +2927,10 @@ function renderRecipes() {
     <div class="recipe-info-card">
       <div class="recipe-info-title">🧾 ${t('recipeTitle')}</div>
       <p class="recipe-tip" style="margin-bottom:12px">${t('recipeSubtitle')}</p>
-      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-outline btn-sm" onclick="selectAllIngredients()">${t('recipeSelectAll')}</button>
         <button class="btn btn-outline btn-sm" onclick="clearIngredients()">${t('recipeClear')}</button>
+        ${nonFoodCount > 0 ? `<button class="btn btn-outline btn-sm" onclick="toggleNonFoodIngredients()" style="margin-left:auto;opacity:0.7" title="${showNonFood ? 'Non-Food ausblenden' : nonFoodCount + ' Non-Food Artikel ausgeblendet'}">${showNonFood ? '🚫 Non-Food ausblenden' : `🚫 +${nonFoodCount} anzeigen`}</button>` : ''}
       </div>
       <div class="ingredient-chips">${chips}</div>
       <div class="recipe-search-row">
@@ -3153,7 +3171,7 @@ async function generateAIRecipes() {
   const hasKey = _inHaPanel || db.settings.openRouterKey || db.settings.groqApiKey;
   if (!hasKey) { showToast(t('aiNoToken')); return; }
 
-  const allItems = db.items;
+  const allItems = db.items.filter(i => !i.nonFood);
   if (allItems.length === 0) return;
 
   const activeItems = selectedIngredients.size > 0
@@ -3276,12 +3294,19 @@ function toggleIngredient(id) {
 }
 
 function selectAllIngredients() {
-  db.items.forEach(i => selectedIngredients.add(i.id));
+  const showNonFood = db.settings.showNonFoodIngredients === true;
+  db.items.filter(i => showNonFood || !i.nonFood).forEach(i => selectedIngredients.add(i.id));
   renderRecipes();
 }
 
 function clearIngredients() {
   selectedIngredients.clear();
+  renderRecipes();
+}
+
+function toggleNonFoodIngredients() {
+  db.settings.showNonFoodIngredients = !db.settings.showNonFoodIngredients;
+  saveDb(false);
   renderRecipes();
 }
 
@@ -3418,6 +3443,8 @@ function openAddModal() {
   document.getElementById('item-added').value = today();
   document.getElementById('item-expiry').value = '';
   document.getElementById('item-notes').value = '';
+  document.getElementById('item-minstock').value = '0';
+  document.getElementById('item-nonfood').checked = false;
 
   updateLocationToggle();
   updateCategorySelect();
@@ -3439,6 +3466,8 @@ function openEditModal(id) {
   document.getElementById('item-added').value = item.added;
   document.getElementById('item-expiry').value = item.expiry || '';
   document.getElementById('item-notes').value = item.notes || '';
+  document.getElementById('item-minstock').value = item.minStock || 0;
+  document.getElementById('item-nonfood').checked = !!item.nonFood;
 
   updateLocationToggle();
   updateCategorySelect(item.category);
@@ -3483,6 +3512,7 @@ function saveItem() {
   const name = document.getElementById('item-name').value.trim();
   if (!name) { document.getElementById('item-name').focus(); return; }
 
+  const minStockVal = parseFloat(document.getElementById('item-minstock').value) || 0;
   const item = {
     id: editingId || generateId(),
     name,
@@ -3493,6 +3523,8 @@ function saveItem() {
     added: document.getElementById('item-added').value || today(),
     expiry: document.getElementById('item-expiry').value || null,
     notes: document.getElementById('item-notes').value.trim(),
+    minStock: minStockVal > 0 ? minStockVal : undefined,
+    nonFood: document.getElementById('item-nonfood').checked || undefined,
   };
 
   if (editingId) {
@@ -3584,13 +3616,25 @@ async function confirmTaken() {
   if (!item) return;
   const addBring = document.getElementById('bring-checkbox').checked && _inHaPanel;
   if (addBring) await addToBring(takenItemId);
-  item.qty = Math.max(0, Math.round((item.qty - takenAmount) * 10) / 10);
+  const newQty = Math.max(0, Math.round((item.qty - takenAmount) * 10) / 10);
+  const minStock = item.minStock || 0;
+  item.qty = newQty;
   if (item.qty <= 0) db.items = db.items.filter(i => i.id !== takenItemId);
   saveDb();
   closeAllModals();
   renderAll();
   const lang = db.settings.lang;
-  showToast(lang === 'ru' ? '✓ Обновлено' : lang === 'sq' ? '✓ Përditësuar' : '✓ Aktualisiert');
+  // Auto-Bring! bei Mindestbestand – nur wenn Checkbox nicht schon gewählt war
+  if (!addBring && minStock > 0 && newQty <= minStock && _inHaPanel) {
+    try {
+      await callServiceViaPanel('todo', 'add_item', { entity_id: db.settings.todoEntity || 'todo.einkauf', item: item.name });
+      showToast('⚠️ Mindestbestand → 🛒 Bring! ✓');
+    } catch(e) {
+      showToast('⚠️ Mindestbestand erreicht');
+    }
+  } else {
+    showToast(lang === 'ru' ? '✓ Обновлено' : lang === 'sq' ? '✓ Përditësuar' : '✓ Aktualisiert');
+  }
 }
 
 async function addToBring(id) {
